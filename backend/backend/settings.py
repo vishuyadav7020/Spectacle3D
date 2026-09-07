@@ -10,18 +10,22 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
-from .env import SECRETKEY
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from backend/.env
+load_dotenv(BASE_DIR / ".env")
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = SECRETKEY
+SECRET_KEY = 'django-insecure-fmrfjpi^$m(-u&ds^))gb%ta5w_dp*kx-%@n#7quk5vth%c4$g'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -72,6 +76,8 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+# NOTE: this SQLite DB is only used for Django's own admin/auth tables.
+# All storefront data (users, products, orders, ...) lives in MongoDB Atlas below.
 
 DATABASES = {
     'default': {
@@ -79,6 +85,16 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+
+# --- MongoDB Atlas ---
+# Read from backend/.env — never hardcode the URI here.
+# .env should contain:
+#   MONGO_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?appName=Cluster0
+#   MONGO_DB_NAME=spectacle3d
+
+MONGO_URI = os.environ.get("MONGO_URI")
+MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "spectacle3d")
 
 
 # Password validation
