@@ -8,9 +8,10 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .schema import UserSchema
+from .mongo import users_collection
 from common.mongo_base import db
 
-users_collection = db["users"]
+
 
 
 @method_decorator(csrf_exempt, name='dispatch')

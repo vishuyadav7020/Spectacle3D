@@ -1,3 +1,3 @@
-from backend.monogo_base import db
+from common.mongo_base import db
 
-users_collection = db["userstet"]
+users_collection = db["users"]
