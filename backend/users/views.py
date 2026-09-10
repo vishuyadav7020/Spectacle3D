@@ -9,6 +9,7 @@ from rest_framework import status
 
 from .schema import UserSchema
 from .mongo import users_collection
+from .utils import normalize_email
 from common.mongo_base import db
 
 
@@ -24,13 +25,15 @@ class UserSignInView(APIView):
         email = data.get("email")
         password = data.get("password")
 
+        email = normalize_email(email)
+
         if not full_name or not email or not password:
             return Response(
                 {"error": "full_name, email and password are required."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if users_collection.find_one({"email": email.lower()}):
+        if users_collection.find_one({"email": email}):
             return Response(
                 {"error": "A user with this email already exists."},
                 status=status.HTTP_400_BAD_REQUEST
