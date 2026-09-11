@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.contrib.auth.hashers import make_password
+from django.contrib.auth.hashers import make_password, check_password
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 
@@ -16,9 +16,10 @@ from common.mongo_base import db
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class UserSignInView(APIView):
+class UserSignUpView(APIView):
 
-    def post(self, request):
+    def post(self, request):   #SignUp API
+
         data = request.data
 
         full_name = data.get("full_name")
@@ -56,3 +57,44 @@ class UserSignInView(APIView):
             },
             status=status.HTTP_201_CREATED
         )
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class UserSignInView(APIView):
+
+    def post(self, request):  #SignIn API
+
+        data = request.data
+
+        email = data.get("email")
+        password = data.get("password")
+
+        if not email or not password:
+            return Response(
+                {"error": "email and password are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user = users_collection.find_one({"email": normalize_email(email)})
+
+        if user is None:
+            return Response(
+                {"error": "User does not exist."},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        if not check_password(password, user["password_hash"]):
+            return Response(
+                {"error": "Invalid password."},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        else:
+            return Response(
+                {
+                    "message": "Sign-in successful.",
+                    "user_id": str(user["_id"]),
+                    "email": user["email"],
+                },
+                status=status.HTTP_200_OK
+            )
