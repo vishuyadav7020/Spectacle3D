@@ -98,3 +98,15 @@ class UserSignInView(APIView):
                 },
                 status=status.HTTP_200_OK
             )
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class UserProfileView(APIView):
+
+    def post(self, request):
+        data = request.data
+        full_name = data.get("full_name")
+        phone_number = data.get("phone_number")
+        dob = data.get("date_of_birth")
+
+        user = user_collection.find_one({"email": normalize_email(dtat)})
