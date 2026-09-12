@@ -1,4 +1,5 @@
 import datetime
+from bson import ObjectId
 from django.utils import timezone
 from typing import Dict, List, Optional
 
@@ -26,6 +27,7 @@ class AddressSchema(BaseSchema):
         is_default: bool = False,
     ) -> Dict:
         return {
+            "_id": ObjectId(),
             "label": label,  # Home, Work, Other
             "line1": line1,
             "line2": line2,
@@ -68,6 +70,9 @@ class UserSchema(BaseSchema):
             # Auth / session
             "last_login": None,
             "refresh_tokens": [],  # Array of active JWT refresh token jtis, if you track them
+            # Password reset (OTP)
+            "password_reset_otp_hash": None,
+            "password_reset_otp_expires_at": None,
             # Stats
             "total_orders": 0,
             "total_spent": 0.0,
