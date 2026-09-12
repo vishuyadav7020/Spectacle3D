@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@theme {
+  /* Colors — matches Figma "Spectacle3D / Colors" variable collection */
+  --color-bg: #0a0a0f;
+  --color-surface: #14141c;
+  --color-surface-2: #1c1c26;
+  --color-border: #2a2a35;
+  --color-text-primary: #f5f5f7;
+  --color-text-secondary: #9c9cab;
+  --color-accent-primary: #00e5ff;
+  --color-accent-secondary: #7c5cff;
+  --color-accent-warm: #ff6b4a;
+  --color-success: #4ade80;
+
+  /* Radius — matches Figma "Spectacle3D / Spacing" variable collection */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+
+  /* Fonts */
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+}

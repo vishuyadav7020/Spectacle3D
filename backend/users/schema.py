@@ -78,22 +78,3 @@ class UserSchema(BaseSchema):
             "total_spent": 0.0,
             **BaseSchema.timestamps()
         }
-
-    @staticmethod
-    def create_admin_user(
-        *,
-        full_name: str,
-        email: str,
-        password_hash: str,
-    ) -> Dict:
-        user = UserSchema.create_user(
-            full_name=full_name,
-            email=email,
-            password_hash=password_hash,
-            role="admin",
-        )
-        user.update({
-            "status": "verified",
-            "is_verified": True,
-        })
-        return user

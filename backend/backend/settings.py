@@ -117,6 +117,15 @@ MONGO_URI = os.environ.get("MONGO_URI")
 MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "spectacle3d")
 
 
+# --- CORS ---
+# corsheaders is installed but blocks everything until origins are allowed.
+# Add your deployed frontend's origin here when you go to production.
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+
 # --- Email (used for password reset OTPs) ---
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
