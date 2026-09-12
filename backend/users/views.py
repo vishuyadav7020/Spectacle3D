@@ -15,6 +15,7 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 
+from common.permissions import IsAdmin
 from .schema import UserSchema, AddressSchema
 from .mongo import users_collection
 from .utils import (
@@ -440,3 +441,110 @@ class AddressDetailView(APIView):
         )
 
         return Response({"message": "Address deleted successfully."}, status=status.HTTP_200_OK)
+
+
+DEFAULT_USER_PAGE_SIZE = 20
+MAX_USER_PAGE_SIZE = 100
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AdminUserListView(APIView):
+    """Admin-only: list/search all users. No create/delete-any-user here by
+    design — role assignment stays a manual DB operation, not an API surface."""
+
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request):
+        query = {}
+
+        role = request.query_params.get("role")
+        if role:
+            query["role"] = role
+
+        status_param = request.query_params.get("status")
+        if status_param:
+            query["status"] = status_param
+
+        is_active_param = request.query_params.get("is_active")
+        if is_active_param is not None:
+            query["is_active"] = is_active_param.lower() == "true"
+
+        search = request.query_params.get("search")
+        if search:
+            query["$or"] = [
+                {"full_name": {"$regex": search, "$options": "i"}},
+                {"email": {"$regex": search, "$options": "i"}},
+            ]
+
+        try:
+            page = max(int(request.query_params.get("page", 1)), 1)
+        except ValueError:
+            return Response({"error": "page must be an integer."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            page_size = min(
+                max(int(request.query_params.get("page_size", DEFAULT_USER_PAGE_SIZE)), 1),
+                MAX_USER_PAGE_SIZE,
+            )
+        except ValueError:
+            return Response({"error": "page_size must be an integer."}, status=status.HTTP_400_BAD_REQUEST)
+
+        total = users_collection.count_documents(query)
+        cursor = (
+            users_collection.find(query)
+            .sort("created_at", -1)
+            .skip((page - 1) * page_size)
+            .limit(page_size)
+        )
+        users = [serialize_user(u) for u in cursor]
+
+        return Response(
+            {
+                "count": total,
+                "page": page,
+                "page_size": page_size,
+                "results": users,
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AdminUserDetailView(APIView):
+    """Admin-only: view a single user, or activate/deactivate their account.
+    Role changes are intentionally not exposed here — see AdminUserListView."""
+
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request, user_id):
+        user_oid = _object_id(user_id)
+        if user_oid is None:
+            return Response({"error": "Invalid user id."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = users_collection.find_one({"_id": user_oid})
+        if user is None:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response(serialize_user(user), status=status.HTTP_200_OK)
+
+    def patch(self, request, user_id):
+        user_oid = _object_id(user_id)
+        if user_oid is None:
+            return Response({"error": "Invalid user id."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if "is_active" not in request.data:
+            return Response(
+                {"error": "Only 'is_active' can be updated here."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        is_active = bool(request.data["is_active"])
+
+        result = users_collection.update_one(
+            {"_id": user_oid},
+            {"$set": {"is_active": is_active, "updated_at": timezone.now()}}
+        )
+        if result.matched_count == 0:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        user = users_collection.find_one({"_id": user_oid})
+        return Response(serialize_user(user), status=status.HTTP_200_OK)

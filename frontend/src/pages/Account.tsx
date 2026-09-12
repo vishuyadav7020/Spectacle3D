@@ -89,7 +89,7 @@ export function Account() {
 
   return (
     <div className="min-h-screen bg-bg">
-      <Navbar cartCount={0} />
+      <Navbar />
 
       <main className="mx-auto max-w-3xl px-6 py-16 md:px-16">
         <h1 className="font-display text-3xl font-bold text-text-primary">

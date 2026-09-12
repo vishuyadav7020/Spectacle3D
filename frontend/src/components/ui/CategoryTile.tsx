@@ -8,15 +8,16 @@ export interface CategoryTileData {
 
 interface CategoryTileProps {
   category: CategoryTileData;
+  count?: number;
 }
 
-export function CategoryTile({ category }: CategoryTileProps) {
+export function CategoryTile({ category, count }: CategoryTileProps) {
   return (
     <Link
       to={`/shop?category=${encodeURIComponent(category.label)}`}
-      className="group flex w-full flex-col gap-3 text-left"
+      className="group flex w-full flex-col gap-2 text-left"
     >
-      <div className="h-40 w-full overflow-hidden rounded-md bg-surface-2 transition-colors group-hover:bg-surface-2/80">
+      <div className="h-32 w-full overflow-hidden rounded-md bg-surface-2 transition-colors group-hover:bg-surface-2/80">
         {category.imageUrl && (
           <img
             src={category.imageUrl}
@@ -25,9 +26,12 @@ export function CategoryTile({ category }: CategoryTileProps) {
           />
         )}
       </div>
-      <h3 className="font-display text-xl font-medium text-text-primary">
+      <h3 className="font-body text-sm font-medium text-text-primary">
         {category.label}
       </h3>
+      {count !== undefined && (
+        <p className="font-body text-xs text-text-secondary">{count} items</p>
+      )}
     </Link>
   );
 }

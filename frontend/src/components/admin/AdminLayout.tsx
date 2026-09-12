@@ -1,5 +1,5 @@
-import { Link, NavLink, Outlet } from "react-router-dom";
-import { LayoutDashboard, Package, Receipt, Users } from "lucide-react";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { LayoutDashboard, LogOut, Package, Receipt, Users } from "lucide-react";
 import clsx from "clsx";
 import { useAuth } from "../../context/AuthContext";
 
@@ -11,19 +11,28 @@ const NAV_ITEMS = [
 ];
 
 export function AdminLayout() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  async function handleLogout() {
+    navigate("/");
+    await logout();
+  }
 
   return (
     <div className="flex min-h-screen bg-bg">
       <aside className="flex w-64 flex-col border-r border-border px-4 py-6">
         <Link
           to="/"
-          className="mb-8 px-2 font-display text-xl font-bold text-accent-primary"
+          className="mb-8 px-2 font-display text-xl font-bold text-text-primary"
         >
-          Spectacle3D
+          Spectacle<span className="text-accent-primary">3D</span>
         </Link>
 
-        <nav className="flex flex-col gap-1">
+        <p className="px-2 font-body text-xs font-semibold uppercase tracking-wide text-text-secondary">
+          Main
+        </p>
+        <nav className="mt-2 flex flex-col gap-1">
           {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
@@ -44,13 +53,17 @@ export function AdminLayout() {
           ))}
         </nav>
 
-        <div className="mt-auto border-t border-border pt-4">
-          <p className="px-2 font-body text-xs text-text-secondary">
-            Signed in as
-          </p>
-          <p className="px-2 font-body text-sm text-text-primary">
-            {user?.full_name}
-          </p>
+        <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
+          <div className="px-2">
+            <p className="font-body text-xs text-text-secondary">Signed in as</p>
+            <p className="font-body text-sm text-text-primary">{user?.full_name}</p>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 rounded-md px-3 py-2.5 font-body text-sm text-text-secondary transition-colors hover:bg-surface-2 hover:text-accent-warm"
+          >
+            <LogOut size={18} /> Logout
+          </button>
         </div>
       </aside>
 

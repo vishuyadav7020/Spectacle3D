@@ -11,6 +11,8 @@ from .views import (
     ResetPasswordView,
     AddressListCreateView,
     AddressDetailView,
+    AdminUserListView,
+    AdminUserDetailView,
 )
 
 urlpatterns = [
@@ -29,4 +31,8 @@ urlpatterns = [
     # Address book CRUD
     path('addresses/', AddressListCreateView.as_view(), name='address_list_create'),
     path('addresses/<str:address_id>/', AddressDetailView.as_view(), name='address_detail'),
+
+    # Admin: view/manage all users
+    path('admin/', AdminUserListView.as_view(), name='admin_user_list'),
+    path('admin/<str:user_id>/', AdminUserDetailView.as_view(), name='admin_user_detail'),
 ]
