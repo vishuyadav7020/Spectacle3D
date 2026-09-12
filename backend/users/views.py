@@ -54,7 +54,7 @@ class UserSignUpView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        email = normalize_email(data["email"])
+        email = normalize_email(data["email"]) # type: ignore
 
         if users_collection.find_one({"email": email}):
             return Response(
@@ -63,7 +63,7 @@ class UserSignUpView(APIView):
             )
 
         user_doc = UserSchema.create_user(
-            full_name=data["full_name"],
+            full_name=data["full_name"], # type: ignore
             email=email,
             password_hash=make_password(data["password"]),
             role="customer",
