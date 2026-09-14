@@ -1,6 +1,7 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
+import { ImagePlus, Loader2, X } from "lucide-react";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { VariantManager, type StagedVariant } from "../../components/admin/VariantManager";
@@ -13,7 +14,11 @@ import {
   createProduct,
   getProduct,
   updateProduct,
+  uploadProductImage,
 } from "../../lib/products";
+
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 
 const FORM_ID = "product-form";
 
@@ -66,7 +71,7 @@ export function ProductFormPage() {
   const [form, setForm] = useState<ProductInput>(EMPTY_FORM);
   const [tagsText, setTagsText] = useState("");
   const [colorsText, setColorsText] = useState("");
-  const [imagesText, setImagesText] = useState("");
+  const [images, setImages] = useState<string[]>([]);
   const [dimensions, setDimensions] = useState(EMPTY_DIMENSIONS);
   const [initialSnapshot, setInitialSnapshot] = useState<string | null>(null);
   const [stagedVariants, setStagedVariants] = useState<StagedVariant[]>([]);
@@ -74,6 +79,9 @@ export function ProductFormPage() {
   const [loading, setLoading] = useState(isEdit);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -88,15 +96,14 @@ export function ProductFormPage() {
           : EMPTY_DIMENSIONS;
         const tags = p.tags.join(", ");
         const colors = p.available_colors.join(", ");
-        const images = p.images.join("\n");
 
         setProduct(p);
         setForm(p);
         setTagsText(tags);
         setColorsText(colors);
-        setImagesText(images);
+        setImages(p.images);
         setDimensions(dims);
-        setInitialSnapshot(buildSnapshot(p, tags, colors, images, dims));
+        setInitialSnapshot(buildSnapshot(p, tags, colors, p.images.join(","), dims));
       })
       .catch(() => setError("Could not load product."))
       .finally(() => setLoading(false));
@@ -107,7 +114,40 @@ export function ProductFormPage() {
   const isDirty =
     !isEdit ||
     initialSnapshot === null ||
-    buildSnapshot(form, tagsText, colorsText, imagesText, dimensions) !== initialSnapshot;
+    buildSnapshot(form, tagsText, colorsText, images.join(","), dimensions) !== initialSnapshot;
+
+  async function handleImagesSelected(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setImageError(null);
+
+    const selected = Array.from(files);
+    for (const file of selected) {
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+        setImageError(`"${file.name}" isn't a supported image type (JPEG, PNG, WEBP, GIF).`);
+        continue;
+      }
+      if (file.size > MAX_IMAGE_SIZE_BYTES) {
+        setImageError(`"${file.name}" is larger than 5MB.`);
+        continue;
+      }
+
+      setUploading(true);
+      try {
+        const url = await uploadProductImage(file);
+        setImages((prev) => [...prev, url]);
+      } catch {
+        setImageError(`Could not upload "${file.name}".`);
+      } finally {
+        setUploading(false);
+      }
+    }
+
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function handleRemoveImage(url: string) {
+    setImages((prev) => prev.filter((img) => img !== url));
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -127,7 +167,7 @@ export function ProductFormPage() {
       sku: form.sku || null,
       tags: toCommaList(tagsText),
       available_colors: toCommaList(colorsText),
-      images: toCommaList(imagesText.replace(/\n/g, ",")),
+      images,
       dimensions: hasDimensions
         ? {
             length_mm: Number(dimensions.length_mm),
@@ -141,7 +181,7 @@ export function ProductFormPage() {
       if (isEdit && id) {
         const updated = await updateProduct(id, payload);
         setProduct(updated);
-        setInitialSnapshot(buildSnapshot(form, tagsText, colorsText, imagesText, dimensions));
+        setInitialSnapshot(buildSnapshot(form, tagsText, colorsText, images.join(","), dimensions));
       } else {
         const created = await createProduct(payload);
         // Variants can only attach to a saved product (the endpoint needs a
@@ -307,14 +347,59 @@ export function ProductFormPage() {
 
         <div className="flex flex-col gap-2">
           <label className="font-body text-sm font-medium text-text-secondary">
-            Image URLs (one per line)
+            Images
           </label>
-          <textarea
-            value={imagesText}
-            onChange={(e) => setImagesText(e.target.value)}
-            rows={3}
-            className="rounded-md border border-border bg-surface px-4 py-3 font-body text-base text-text-primary focus:border-accent-primary focus:outline-none"
+
+          {images.length > 0 && (
+            <div className="flex flex-wrap gap-3">
+              {images.map((url, idx) => (
+                <div
+                  key={url}
+                  className="group relative h-24 w-24 shrink-0 overflow-hidden rounded-md border border-border bg-surface-2"
+                >
+                  <img src={url} alt={`Product ${idx + 1}`} className="h-full w-full object-cover" />
+                  {idx === 0 && (
+                    <span className="absolute bottom-0 left-0 right-0 bg-bg/80 px-1 py-0.5 text-center font-body text-[10px] text-text-secondary">
+                      Primary
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImage(url)}
+                    aria-label={`Remove image ${idx + 1}`}
+                    className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-bg/80 text-text-primary opacity-0 transition-opacity group-hover:opacity-100"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ALLOWED_IMAGE_TYPES.join(",")}
+            multiple
+            onChange={(e) => handleImagesSelected(e.target.files)}
+            className="hidden"
           />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="flex w-fit items-center gap-2 rounded-md border border-dashed border-border px-4 py-3 font-body text-sm text-text-secondary transition-colors hover:border-accent-primary/60 hover:text-text-primary disabled:opacity-60"
+          >
+            {uploading ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />}
+            {uploading ? "Uploading..." : "Upload images from your computer"}
+          </button>
+          <p className="font-body text-xs text-text-secondary">
+            JPEG, PNG, WEBP, or GIF — 5MB max. The first image is used as the primary photo.
+          </p>
+
+          {imageError && (
+            <p className="font-body text-sm text-accent-warm">{imageError}</p>
+          )}
         </div>
 
         <div>

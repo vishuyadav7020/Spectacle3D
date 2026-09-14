@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { UserMenu } from "./UserMenu";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
+import { useWishlist } from "../../context/WishlistContext";
 
 const NAV_LINKS = [
   { label: "Shop", to: "/shop" },
@@ -13,11 +14,12 @@ const NAV_LINKS = [
 ];
 
 export function Navbar() {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { totalCount } = useCart();
+  const { items: wishlistItems } = useWishlist();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const wishlistCount = user?.wishlist.length ?? 0;
+  const wishlistCount = wishlistItems.length;
 
   function handleSearch(e: FormEvent) {
     e.preventDefault();
@@ -63,18 +65,14 @@ export function Navbar() {
 
         <div className="ml-auto flex items-center gap-4 sm:ml-0">
           {isAuthenticated && (
-            <button
-              type="button"
-              aria-label="Wishlist"
-              className="relative flex items-center text-text-primary"
-            >
+            <Link to="/wishlist" aria-label="Wishlist" className="relative flex items-center text-text-primary">
               <Heart size={20} />
               {wishlistCount > 0 && (
                 <span className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-accent-warm text-[10px] font-semibold text-bg">
                   {wishlistCount}
                 </span>
               )}
-            </button>
+            </Link>
           )}
 
           <Link to="/cart" aria-label="Cart" className="relative flex items-center text-text-primary">

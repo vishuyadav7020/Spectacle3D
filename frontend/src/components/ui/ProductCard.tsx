@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Heart, Star } from "lucide-react";
 import { Button } from "./Button";
 import { useCart } from "../../context/CartContext";
+import { useAuth } from "../../context/AuthContext";
+import { useWishlist } from "../../context/WishlistContext";
 import type { Product } from "../../lib/products";
 
 interface ProductCardProps {
@@ -11,7 +13,20 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const { addItem } = useCart();
+  const { isAuthenticated } = useAuth();
+  const { isWishlisted, toggleWishlist } = useWishlist();
+  const navigate = useNavigate();
   const [added, setAdded] = useState(false);
+  const wishlisted = isWishlisted(product.id);
+
+  function handleToggleWishlist(e: React.MouseEvent) {
+    e.preventDefault();
+    if (!isAuthenticated) {
+      navigate("/signin");
+      return;
+    }
+    toggleWishlist(product);
+  }
   const price = product.discount_price ?? product.base_price;
   const onSale = product.discount_price != null;
   const imageUrl = product.images[0];
@@ -50,11 +65,13 @@ export function ProductCard({ product }: ProductCardProps) {
 
         <button
           type="button"
-          aria-label="Add to wishlist"
-          onClick={(e) => e.preventDefault()}
-          className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-bg/60 text-text-primary backdrop-blur-sm transition-colors hover:text-accent-warm"
+          aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+          onClick={handleToggleWishlist}
+          className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-bg/60 backdrop-blur-sm transition-colors hover:text-accent-warm ${
+            wishlisted ? "text-accent-warm" : "text-text-primary"
+          }`}
         >
-          <Heart size={16} />
+          <Heart size={16} className={wishlisted ? "fill-accent-warm" : ""} />
         </button>
 
         <Button

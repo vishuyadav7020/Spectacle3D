@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, CheckCircle2, FileEdit, Package } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileEdit, Package, Receipt, Wallet } from "lucide-react";
 import { type Product, listProducts } from "../../lib/products";
+import { listAllOrders, type Order } from "../../lib/orders";
 import { CATEGORIES } from "../../data/categories";
 
 const LOW_STOCK_THRESHOLD = 5;
@@ -12,6 +13,9 @@ export function AdminDashboard() {
   const [draft, setDraft] = useState<number | null>(null);
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
   const [lowStock, setLowStock] = useState<Product[]>([]);
+  const [orderCount, setOrderCount] = useState<number | null>(null);
+  const [revenue, setRevenue] = useState<number | null>(null);
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
 
   useEffect(() => {
     listProducts({ page_size: 1 }).then((data) => setTotal(data.count));
@@ -33,6 +37,18 @@ export function AdminDashboard() {
           .slice(0, 5),
       );
     });
+
+    // Revenue/order counts are real, derived from the orders backend — no
+    // fabricated figures. Cancelled orders are excluded from revenue.
+    listAllOrders({ page_size: 100 }).then((data) => {
+      setOrderCount(data.count);
+      setRevenue(
+        data.results
+          .filter((o) => o.status !== "cancelled")
+          .reduce((sum, o) => sum + o.total, 0),
+      );
+      setRecentOrders(data.results.slice(0, 5));
+    });
   }, []);
 
   const maxCategoryCount = Math.max(1, ...Object.values(categoryCounts));
@@ -50,6 +66,46 @@ export function AdminDashboard() {
         <StatCard icon={Package} label="Total Products" value={total} />
         <StatCard icon={CheckCircle2} label="Published" value={published} accent="text-success" />
         <StatCard icon={FileEdit} label="Drafts" value={draft} accent="text-text-secondary" />
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <StatCard icon={Receipt} label="Total Orders" value={orderCount} />
+        <StatCard
+          icon={Wallet}
+          label="Revenue"
+          value={revenue === null ? null : Math.round(revenue)}
+          accent="text-success"
+          prefix="₹"
+        />
+      </div>
+
+      <div className="mt-8 rounded-lg border border-border bg-surface p-6">
+        <h2 className="font-display text-lg font-medium text-text-primary">
+          Recent Orders
+        </h2>
+        {recentOrders.length === 0 ? (
+          <p className="mt-4 font-body text-sm text-text-secondary">
+            No orders placed yet.
+          </p>
+        ) : (
+          <div className="mt-4 flex flex-col gap-3">
+            {recentOrders.map((order) => (
+              <Link
+                key={order.id}
+                to="/admin/orders"
+                className="flex items-center justify-between rounded-md px-2 py-2 -mx-2 hover:bg-surface-2"
+              >
+                <div>
+                  <p className="font-body text-sm text-text-primary">#{order.order_number}</p>
+                  <p className="font-body text-xs capitalize text-text-secondary">{order.status}</p>
+                </div>
+                <p className="font-body text-sm font-medium text-text-primary">
+                  ₹{order.total.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                </p>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -126,17 +182,19 @@ function StatCard({
   label,
   value,
   accent = "text-accent-primary",
+  prefix = "",
 }: {
   icon: typeof Package;
   label: string;
   value: number | null;
   accent?: string;
+  prefix?: string;
 }) {
   return (
     <div className="rounded-lg border border-border bg-surface p-6">
       <Icon size={20} className={accent} />
       <p className="mt-4 font-display text-2xl font-bold text-text-primary">
-        {value ?? "—"}
+        {value === null ? "—" : `${prefix}${value.toLocaleString("en-IN")}`}
       </p>
       <p className="font-body text-sm text-text-secondary">{label}</p>
     </div>

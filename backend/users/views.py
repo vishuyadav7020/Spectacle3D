@@ -16,6 +16,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 
 from common.permissions import IsAdmin
+from products.mongo import products_collection
+from products.utils import serialize_product
 from .schema import UserSchema, AddressSchema
 from .mongo import users_collection
 from .utils import (
@@ -441,6 +443,61 @@ class AddressDetailView(APIView):
         )
 
         return Response({"message": "Address deleted successfully."}, status=status.HTTP_200_OK)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class WishlistView(APIView):
+    """List the authenticated user's wishlist, resolved to full product docs."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = users_collection.find_one(
+            {"_id": ObjectId(request.user.id)},
+            {"wishlist": 1}
+        )
+        product_ids = user.get("wishlist", []) if user else []
+
+        products = products_collection.find({"_id": {"$in": product_ids}})
+        return Response([serialize_product(p) for p in products], status=status.HTTP_200_OK)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class WishlistItemView(APIView):
+    """Add / remove a single product from the authenticated user's wishlist."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, product_id):
+        product_oid = _object_id(product_id)
+        if product_oid is None:
+            return Response({"error": "Invalid product id."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if products_collection.find_one({"_id": product_oid}) is None:
+            return Response({"error": "Product not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        users_collection.update_one(
+            {"_id": ObjectId(request.user.id)},
+            {
+                "$addToSet": {"wishlist": product_oid},
+                "$set": {"updated_at": timezone.now()},
+            }
+        )
+        return Response({"message": "Added to wishlist."}, status=status.HTTP_200_OK)
+
+    def delete(self, request, product_id):
+        product_oid = _object_id(product_id)
+        if product_oid is None:
+            return Response({"error": "Invalid product id."}, status=status.HTTP_400_BAD_REQUEST)
+
+        users_collection.update_one(
+            {"_id": ObjectId(request.user.id)},
+            {
+                "$pull": {"wishlist": product_oid},
+                "$set": {"updated_at": timezone.now()},
+            }
+        )
+        return Response({"message": "Removed from wishlist."}, status=status.HTTP_200_OK)
 
 
 DEFAULT_USER_PAGE_SIZE = 20

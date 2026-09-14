@@ -105,6 +105,13 @@ export async function deleteProduct(id: string) {
   await api.delete(`/products/${id}/`);
 }
 
+export async function uploadProductImage(file: File) {
+  const formData = new FormData();
+  formData.append("image", file);
+  const { data } = await api.post<{ url: string }>("/products/admin/upload-image/", formData);
+  return data.url;
+}
+
 export interface VariantInput {
   material: string;
   color: string;

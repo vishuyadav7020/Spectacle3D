@@ -7,7 +7,7 @@ import { Input } from "../components/ui/Input";
 import { Button } from "../components/ui/Button";
 import { CheckoutSteps } from "../components/ui/CheckoutSteps";
 import { useCart } from "../context/CartContext";
-import type { OrderSummary } from "./OrderConfirmation";
+import { createOrder } from "../lib/orders";
 
 const SHIPPING_OPTIONS = [
   { id: "standard", label: "Standard Shipping (5-7 days)", price: 5 },
@@ -32,6 +32,8 @@ export function Checkout() {
   const [country, setCountry] = useState("United States");
   const [shippingMethod, setShippingMethod] = useState("standard");
   const [cardNumber, setCardNumber] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const shipping = SHIPPING_OPTIONS.find((s) => s.id === shippingMethod)!.price;
   const tax = totalPrice * TAX_RATE;
@@ -52,25 +54,44 @@ export function Checkout() {
     );
   }
 
-  function handlePlaceOrder(e: FormEvent) {
+  async function handlePlaceOrder(e: FormEvent) {
     e.preventDefault();
+    setError(null);
+    setSubmitting(true);
 
-    // No payment gateway or orders backend exists yet — this simulates a
-    // successful order locally. Card details never leave this component.
-    const order: OrderSummary = {
-      orderNumber: `SPD-${Math.floor(10000 + Math.random() * 90000)}`,
-      orderDate: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
-      items,
-      subtotal: totalPrice,
-      shipping,
-      tax,
-      total,
-      shippingAddress: { firstName, lastName, street, apt, city, state, zip, country },
-      cardLast4: cardNumber.slice(-4) || "0000",
-    };
+    try {
+      // Card details never leave this component — only the last 4 digits
+      // are sent, since there's no real payment gateway.
+      const order = await createOrder({
+        items: items.map((item) => ({
+          product_id: item.productId,
+          variant_id: item.variantId,
+          quantity: item.quantity,
+        })),
+        shipping_address: {
+          first_name: firstName,
+          last_name: lastName,
+          street,
+          apt: apt || null,
+          city,
+          state,
+          zip_code: zip,
+          country,
+        },
+        shipping_method: shippingMethod as "standard" | "express",
+        card_last4: cardNumber.slice(-4) || "0000",
+      });
 
-    clearCart();
-    navigate("/order-confirmation", { state: order });
+      clearCart();
+      navigate("/order-confirmation", { state: order });
+    } catch (err) {
+      const message =
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
+        "Could not place your order. Please try again.";
+      setError(message);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -235,8 +256,17 @@ export function Checkout() {
               </span>
             </div>
 
-            <Button type="submit" variant="primary" className="mt-6 flex w-full items-center justify-center gap-2">
-              <Lock size={16} /> Place Order
+            {error && (
+              <p className="mt-4 font-body text-sm text-accent-warm">{error}</p>
+            )}
+
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={submitting}
+              className="mt-6 flex w-full items-center justify-center gap-2 disabled:opacity-60"
+            >
+              <Lock size={16} /> {submitting ? "Placing Order..." : "Place Order"}
             </Button>
             <p className="mt-3 text-center font-body text-xs text-text-secondary">
               By placing your order, you agree to our Terms of Service and Privacy Policy.

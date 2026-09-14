@@ -11,6 +11,8 @@ from .views import (
     ResetPasswordView,
     AddressListCreateView,
     AddressDetailView,
+    WishlistView,
+    WishlistItemView,
     AdminUserListView,
     AdminUserDetailView,
 )
@@ -25,6 +27,8 @@ urlpatterns = [
     # Profile CRUD
     path('me/', UserProfileView.as_view(), name='user_profile'),
     path('me/change-password/', ChangePasswordView.as_view(), name='change_password'),
+    path('me/wishlist/', WishlistView.as_view(), name='wishlist_list'),
+    path('me/wishlist/<str:product_id>/', WishlistItemView.as_view(), name='wishlist_item'),
     path('password/forgot/', ForgotPasswordView.as_view(), name='forgot_password'),
     path('password/reset/', ResetPasswordView.as_view(), name='reset_password'),
 

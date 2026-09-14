@@ -1,12 +1,18 @@
+import os
+import uuid
+
 from bson import ObjectId
 from bson.errors import InvalidId
+from PIL import Image, UnidentifiedImageError
 
+from django.core.files.storage import default_storage
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 
@@ -23,6 +29,9 @@ from .serializers import (
 
 DEFAULT_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 100
+
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
 
 
 def _object_id(value):
@@ -206,6 +215,47 @@ class ProductDetailView(APIView):
             return Response({"error": "Product not found."}, status=status.HTTP_404_NOT_FOUND)
 
         return Response({"message": "Product deleted successfully."}, status=status.HTTP_200_OK)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ProductImageUploadView(APIView):
+    """Admin-only: upload a product image file from the local filesystem,
+    save it under MEDIA_ROOT, and return its URL for use in the product's
+    `images` list."""
+
+    permission_classes = [IsAuthenticated, IsAdmin]
+    parser_classes = [MultiPartParser]
+
+    def post(self, request):
+        image = request.FILES.get("image")
+        if image is None:
+            return Response({"error": "No image file provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if image.content_type not in ALLOWED_IMAGE_TYPES:
+            return Response(
+                {"error": "Unsupported file type. Use JPEG, PNG, WEBP, or GIF."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if image.size > MAX_IMAGE_SIZE_BYTES:
+            return Response({"error": "Image must be 5MB or smaller."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Verify the bytes are actually a valid, decodable image — a file's
+        # declared content_type can be spoofed, so this is the real check.
+        try:
+            Image.open(image).verify()
+        except (UnidentifiedImageError, OSError):
+            return Response({"error": "File is not a valid image."}, status=status.HTTP_400_BAD_REQUEST)
+        image.seek(0)
+
+        ext = os.path.splitext(image.name)[1].lower() or ".jpg"
+        filename = f"products/{uuid.uuid4().hex}{ext}"
+        saved_path = default_storage.save(filename, image)
+
+        return Response(
+            {"url": request.build_absolute_uri(default_storage.url(saved_path))},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 @method_decorator(csrf_exempt, name='dispatch')

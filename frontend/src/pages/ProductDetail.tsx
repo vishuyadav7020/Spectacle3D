@@ -1,18 +1,34 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { CheckCircle2, Minus, Plus, Star } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Heart,
+  Minus,
+  Plus,
+  Star,
+  Truck,
+  RotateCcw,
+  ShieldCheck,
+} from "lucide-react";
 import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
 import { Button } from "../components/ui/Button";
 import { ProductCard } from "../components/ui/ProductCard";
 import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
+import { useWishlist } from "../context/WishlistContext";
 import { type Product, type Variant, getProduct, listProducts } from "../lib/products";
 
-const TABS = ["Description", "Specifications", "Shipping & Returns"] as const;
+const TABS = ["Description", "Shipping & Returns"] as const;
 
 export function ProductDetail() {
   const { id } = useParams<{ id: string }>();
   const { addItem } = useCart();
+  const { isAuthenticated } = useAuth();
+  const { isWishlisted, toggleWishlist } = useWishlist();
+  const navigate = useNavigate();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [related, setRelated] = useState<Product[]>([]);
@@ -70,6 +86,23 @@ export function ProductDetail() {
   const activeVariants = product.variants.filter((v) => v.is_active);
   const images = product.images.length > 0 ? product.images : [undefined];
 
+  function showPrevImage() {
+    setActiveImage((i) => (i - 1 + images.length) % images.length);
+  }
+
+  function showNextImage() {
+    setActiveImage((i) => (i + 1) % images.length);
+  }
+
+  function handleToggleWishlist() {
+    if (!product) return;
+    if (!isAuthenticated) {
+      navigate("/signin");
+      return;
+    }
+    toggleWishlist(product);
+  }
+
   function handleAddToCart() {
     if (!product) return;
     addItem({
@@ -105,18 +138,38 @@ export function ProductDetail() {
 
         <div className="mt-6 grid grid-cols-1 gap-10 md:grid-cols-2">
           <div>
-            <div className="aspect-square w-full overflow-hidden rounded-lg bg-surface-2">
+            <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-surface-2">
               {images[activeImage] && (
                 <img src={images[activeImage]} alt={product.name} className="h-full w-full object-cover" />
               )}
+              {images.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={showPrevImage}
+                    aria-label="Previous image"
+                    className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-bg/70 text-text-primary transition-colors hover:bg-bg/90"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={showNextImage}
+                    aria-label="Next image"
+                    className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-bg/70 text-text-primary transition-colors hover:bg-bg/90"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </>
+              )}
             </div>
             {images.length > 1 && (
-              <div className="mt-3 grid grid-cols-4 gap-3">
+              <div className="mt-3 flex flex-wrap gap-3">
                 {images.map((img, i) => (
                   <button
                     key={i}
                     onClick={() => setActiveImage(i)}
-                    className={`aspect-square overflow-hidden rounded-md border-2 bg-surface-2 ${
+                    className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 bg-surface-2 ${
                       i === activeImage ? "border-accent-primary" : "border-transparent"
                     }`}
                   >
@@ -208,6 +261,30 @@ export function ProductDetail() {
               <Button variant="primary" className="flex-1" onClick={handleAddToCart}>
                 {added ? "Added to Cart ✓" : "Add to Cart"}
               </Button>
+              <button
+                type="button"
+                aria-label={isAuthenticated && isWishlisted(product.id) ? "Remove from wishlist" : "Add to wishlist"}
+                onClick={handleToggleWishlist}
+                className={`flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-md border transition-colors ${
+                  isAuthenticated && isWishlisted(product.id)
+                    ? "border-accent-warm text-accent-warm"
+                    : "border-border text-text-primary hover:border-accent-warm/60 hover:text-accent-warm"
+                }`}
+              >
+                <Heart size={18} className={isAuthenticated && isWishlisted(product.id) ? "fill-accent-warm" : ""} />
+              </button>
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 font-body text-xs text-text-secondary">
+              <span className="flex items-center gap-1.5">
+                <Truck size={14} className="text-accent-primary" /> Free shipping $50+
+              </span>
+              <span className="flex items-center gap-1.5">
+                <RotateCcw size={14} className="text-accent-primary" /> 30-day returns
+              </span>
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck size={14} className="text-accent-primary" /> Secure checkout
+              </span>
             </div>
 
             <div className="mt-8 border-t border-border">
@@ -228,23 +305,25 @@ export function ProductDetail() {
               </div>
 
               <div className="py-6 font-body text-sm text-text-secondary">
-                {tab === "Description" && <p>{product.description}</p>}
-                {tab === "Specifications" && (
-                  <div className="flex flex-col gap-2">
-                    <SpecRow label="Print technology" value={product.print_technology} />
-                    {product.material && <SpecRow label="Material" value={product.material} />}
-                    {product.scale && <SpecRow label="Scale" value={product.scale} />}
-                    {product.weight_grams && <SpecRow label="Weight" value={`${product.weight_grams} g`} />}
-                    {product.dimensions && (
+                {tab === "Description" && (
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_260px]">
+                    <p>{product.description}</p>
+                    <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4">
+                      <SpecRow label="Print technology" value={product.print_technology} />
+                      {product.material && <SpecRow label="Material" value={product.material} />}
+                      {product.scale && <SpecRow label="Scale" value={product.scale} />}
+                      {product.weight_grams && <SpecRow label="Weight" value={`${product.weight_grams} g`} />}
+                      {product.dimensions && (
+                        <SpecRow
+                          label="Dimensions"
+                          value={`${product.dimensions.length_mm} × ${product.dimensions.width_mm} × ${product.dimensions.height_mm} mm`}
+                        />
+                      )}
                       <SpecRow
-                        label="Dimensions"
-                        value={`${product.dimensions.length_mm} × ${product.dimensions.width_mm} × ${product.dimensions.height_mm} mm`}
+                        label="Fulfillment"
+                        value={product.is_made_to_order ? "Made to order" : "Ships from stock"}
                       />
-                    )}
-                    <SpecRow
-                      label="Fulfillment"
-                      value={product.is_made_to_order ? "Made to order" : "Ships from stock"}
-                    />
+                    </div>
                   </div>
                 )}
                 {tab === "Shipping & Returns" && (

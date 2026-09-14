@@ -4,38 +4,22 @@ import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
 import { Button } from "../components/ui/Button";
 import { CheckoutSteps } from "../components/ui/CheckoutSteps";
-import type { CartItem } from "../lib/cart";
-
-export interface OrderSummary {
-  orderNumber: string;
-  orderDate: string;
-  items: CartItem[];
-  subtotal: number;
-  shipping: number;
-  tax: number;
-  total: number;
-  shippingAddress: {
-    firstName: string;
-    lastName: string;
-    street: string;
-    apt: string;
-    city: string;
-    state: string;
-    zip: string;
-    country: string;
-  };
-  cardLast4: string;
-}
+import type { Order } from "../lib/orders";
 
 export function OrderConfirmation() {
   const location = useLocation();
-  const order = location.state as OrderSummary | null;
+  const order = location.state as Order | null;
 
   if (!order) {
     return <Navigate to="/" replace />;
   }
 
-  const { shippingAddress: addr } = order;
+  const addr = order.shipping_address;
+  const orderDate = new Date(order.created_at).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 
   return (
     <div className="min-h-screen bg-bg">
@@ -64,7 +48,7 @@ export function OrderConfirmation() {
           <div className="mt-4 rounded-md border border-border px-4 py-2 font-body text-sm text-text-secondary">
             Order Number{" "}
             <span className="font-semibold text-accent-primary">
-              #{order.orderNumber}
+              #{order.order_number}
             </span>
           </div>
         </div>
@@ -73,11 +57,11 @@ export function OrderConfirmation() {
           <div className="grid grid-cols-3 gap-4 border-b border-border pb-4 font-body text-sm">
             <div>
               <p className="text-text-secondary">Order Date</p>
-              <p className="mt-1 text-text-primary">{order.orderDate}</p>
+              <p className="mt-1 text-text-primary">{orderDate}</p>
             </div>
             <div>
               <p className="text-text-secondary">Payment Method</p>
-              <p className="mt-1 text-text-primary">Card •••• {order.cardLast4}</p>
+              <p className="mt-1 text-text-primary">Card •••• {order.card_last4}</p>
             </div>
             <div>
               <p className="text-text-secondary">Estimated Delivery</p>
@@ -86,11 +70,11 @@ export function OrderConfirmation() {
           </div>
 
           <div className="flex flex-col gap-4 py-4">
-            {order.items.map((item) => (
-              <div key={item.key} className="flex items-center gap-4">
+            {order.items.map((item, idx) => (
+              <div key={`${item.product_id}:${item.variant_id ?? idx}`} className="flex items-center gap-4">
                 <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md bg-surface-2">
-                  {item.imageUrl && (
-                    <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
+                  {item.image_url && (
+                    <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" />
                   )}
                 </div>
                 <div className="flex-1">
@@ -100,7 +84,7 @@ export function OrderConfirmation() {
                   </p>
                 </div>
                 <p className="font-body text-sm font-medium text-text-primary">
-                  ₹{(item.price * item.quantity).toLocaleString("en-IN")}
+                  ₹{item.subtotal.toLocaleString("en-IN")}
                 </p>
               </div>
             ))}
@@ -113,7 +97,7 @@ export function OrderConfirmation() {
             </div>
             <div className="flex justify-between">
               <span>Shipping</span>
-              <span>₹{order.shipping.toLocaleString("en-IN")}</span>
+              <span>₹{order.shipping_cost.toLocaleString("en-IN")}</span>
             </div>
             <div className="flex justify-between">
               <span>Tax</span>
@@ -134,12 +118,12 @@ export function OrderConfirmation() {
             <MapPin size={16} className="text-accent-primary" /> Shipping Address
           </div>
           <p className="mt-3 font-body text-sm text-text-secondary">
-            {addr.firstName} {addr.lastName}
+            {addr.first_name} {addr.last_name}
             <br />
             {addr.street}
             {addr.apt ? `, ${addr.apt}` : ""}
             <br />
-            {addr.city}, {addr.state} {addr.zip}
+            {addr.city}, {addr.state} {addr.zip_code}
             <br />
             {addr.country}
           </p>
