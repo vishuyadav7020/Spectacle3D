@@ -14,6 +14,8 @@ def serialize_order(doc: dict) -> dict:
     data = dict(doc)
     data["id"] = str(data.pop("_id"))
     data["user_id"] = str(data["user_id"])
+    if data.get("coupon_id"):
+        data["coupon_id"] = str(data["coupon_id"])
 
     items = []
     for item in data.get("items", []):
