@@ -70,6 +70,17 @@ export interface ProductListResponse {
   results: Product[];
 }
 
+export const PRODUCT_SORT_OPTIONS = [
+  "newest",
+  "oldest",
+  "price_asc",
+  "price_desc",
+  "rating",
+  "popular",
+  "name_asc",
+] as const;
+export type ProductSort = (typeof PRODUCT_SORT_OPTIONS)[number];
+
 export interface ProductListParams {
   status?: string;
   category?: string;
@@ -77,6 +88,8 @@ export interface ProductListParams {
   search?: string;
   min_price?: number;
   max_price?: number;
+  min_rating?: number;
+  sort_by?: ProductSort;
   page?: number;
   page_size?: number;
 }

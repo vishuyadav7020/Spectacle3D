@@ -596,6 +596,12 @@ class AdminUserDetailView(APIView):
 
         is_active = bool(request.data["is_active"])
 
+        if not is_active and user_oid == ObjectId(request.user.id):
+            return Response(
+                {"error": "You cannot deactivate your own account."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         result = users_collection.update_one(
             {"_id": user_oid},
             {"$set": {"is_active": is_active, "updated_at": timezone.now()}}

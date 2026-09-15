@@ -15,7 +15,7 @@ const NAV_LINKS = [
 
 export function Navbar() {
   const { isAuthenticated } = useAuth();
-  const { totalCount } = useCart();
+  const { itemCount } = useCart();
   const { items: wishlistItems } = useWishlist();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -27,7 +27,7 @@ export function Navbar() {
   }
 
   return (
-    <header className="border-b border-border">
+    <header className="sticky top-0 z-40 border-b border-border bg-bg/85 backdrop-blur-md">
       <nav className="flex items-center gap-6 px-6 py-4 md:px-16">
         <Link
           to="/"
@@ -77,9 +77,9 @@ export function Navbar() {
 
           <Link to="/cart" aria-label="Cart" className="relative flex items-center text-text-primary">
             <ShoppingCart size={20} />
-            {totalCount > 0 && (
+            {itemCount > 0 && (
               <span className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-accent-warm text-[10px] font-semibold text-bg">
-                {totalCount}
+                {itemCount}
               </span>
             )}
           </Link>

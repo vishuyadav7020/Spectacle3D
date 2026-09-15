@@ -9,11 +9,13 @@ const VALUES = [
 
 export function TrustStrip() {
   return (
-    <section className="border-y border-border bg-surface px-6 py-6 md:px-16">
+    <section className="border-y border-border bg-surface px-6 py-8 md:px-16">
       <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
         {VALUES.map(({ icon: Icon, title, description }) => (
-          <div key={title} className="flex items-center gap-3">
-            <Icon size={20} className="shrink-0 text-accent-primary" />
+          <div key={title} className="group flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-primary/10 text-accent-primary transition-colors duration-200 group-hover:bg-accent-primary group-hover:text-bg">
+              <Icon size={18} />
+            </div>
             <div>
               <p className="font-body text-sm font-medium text-text-primary">
                 {title}

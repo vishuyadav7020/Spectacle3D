@@ -11,6 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
 from common.permissions import IsAdmin
+from coupons.utils import validate_coupon, reserve_coupon_usage, release_coupon_usage, record_redemption
 from products.mongo import products_collection
 from users.mongo import users_collection
 from .mongo import orders_collection
@@ -45,6 +46,23 @@ def _paginate_params(request):
     except ValueError:
         return None, None, "page_size must be an integer."
     return page, page_size, None
+
+
+def _rollback_stock(decremented):
+    """Restores stock/total_sold for items already decremented earlier in a
+    request that then failed a later step (insufficient stock on another
+    item, or a coupon race)."""
+    for prod_oid, var_oid, qty in decremented:
+        if var_oid:
+            products_collection.update_one(
+                {"_id": prod_oid, "variants._id": var_oid},
+                {"$inc": {"variants.$.stock_quantity": qty, "total_sold": -qty}},
+            )
+        else:
+            products_collection.update_one(
+                {"_id": prod_oid},
+                {"$inc": {"stock_quantity": qty, "total_sold": -qty}},
+            )
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -112,6 +130,18 @@ class OrderListCreateView(APIView):
                 "color": color,
             })
 
+        subtotal = round(sum(item["unit_price"] * item["quantity"] for item in resolved_items), 2)
+
+        # --- Validate the coupon (if any) before touching stock — cheap to
+        # reject here, since nothing has been mutated yet. ---
+        coupon = None
+        discount_amount = 0.0
+        coupon_code = data.get("coupon_code")
+        if coupon_code:
+            coupon, discount_amount, error = validate_coupon(coupon_code, ObjectId(request.user.id), subtotal)
+            if error:
+                return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
+
         # --- Decrement stock atomically per item; roll back on first failure. ---
         decremented = []  # (product_oid, variant_oid, quantity) already applied — for rollback
         for item in resolved_items:
@@ -136,23 +166,23 @@ class OrderListCreateView(APIView):
 
             if result.modified_count == 0:
                 # Insufficient stock — undo everything decremented so far this request.
-                for prod_oid, var_oid, qty in decremented:
-                    if var_oid:
-                        products_collection.update_one(
-                            {"_id": prod_oid, "variants._id": var_oid},
-                            {"$inc": {"variants.$.stock_quantity": qty, "total_sold": -qty}},
-                        )
-                    else:
-                        products_collection.update_one(
-                            {"_id": prod_oid},
-                            {"$inc": {"stock_quantity": qty, "total_sold": -qty}},
-                        )
+                _rollback_stock(decremented)
                 return Response(
                     {"error": f"Not enough stock for '{product['name']}'."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
             decremented.append((item["product_oid"], item["variant_oid"], item["quantity"]))
+
+        # --- Reserve the coupon's usage now that we're committed to the order.
+        # A concurrent request may have exhausted it between validation and
+        # here — if so, undo the stock we just decremented. ---
+        if coupon and not reserve_coupon_usage(coupon):
+            _rollback_stock(decremented)
+            return Response(
+                {"error": "This coupon was just used up. Please try again without it."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         # --- Build order items + totals server-side. ---
         order_items = [
@@ -169,10 +199,10 @@ class OrderListCreateView(APIView):
             for item in resolved_items
         ]
 
-        subtotal = round(sum(i["subtotal"] for i in order_items), 2)
         shipping_cost = SHIPPING_RATES[data["shipping_method"]]
-        tax = round(subtotal * TAX_RATE, 2)
-        total = round(subtotal + shipping_cost + tax, 2)
+        taxable_subtotal = subtotal - discount_amount
+        tax = round(taxable_subtotal * TAX_RATE, 2)
+        total = round(taxable_subtotal + shipping_cost + tax, 2)
 
         addr = data["shipping_address"]
         shipping_address = ShippingAddressSchema.create_address(
@@ -196,6 +226,9 @@ class OrderListCreateView(APIView):
             tax=tax,
             total=total,
             card_last4=data.get("card_last4", "0000"),
+            coupon_id=coupon["_id"] if coupon else None,
+            coupon_code=coupon["code"] if coupon else None,
+            discount_amount=discount_amount,
         )
 
         result = orders_collection.insert_one(order_doc)
@@ -203,6 +236,9 @@ class OrderListCreateView(APIView):
         order_number = make_order_number(result.inserted_id)
         orders_collection.update_one({"_id": result.inserted_id}, {"$set": {"order_number": order_number}})
         order_doc["order_number"] = order_number
+
+        if coupon:
+            record_redemption(coupon["_id"], ObjectId(request.user.id), result.inserted_id, discount_amount)
 
         users_collection.update_one(
             {"_id": ObjectId(request.user.id)},
@@ -269,7 +305,8 @@ class AdminOrderListView(APIView):
 @method_decorator(csrf_exempt, name='dispatch')
 class AdminOrderDetailView(APIView):
     """Admin-only: update an order's fulfillment status. Cancelling restores
-    any stock that was decremented for non-made-to-order items."""
+    any stock that was decremented for non-made-to-order items, and frees up
+    the coupon usage (if any) the order had consumed."""
 
     permission_classes = [IsAuthenticated, IsAdmin]
 
@@ -300,6 +337,9 @@ class AdminOrderDetailView(APIView):
                             {"_id": item["product_id"]},
                             {"$inc": {"stock_quantity": item["quantity"], "total_sold": -item["quantity"]}},
                         )
+
+            if order.get("coupon_id"):
+                release_coupon_usage(order["coupon_id"])
 
         orders_collection.update_one(
             {"_id": order_oid},
