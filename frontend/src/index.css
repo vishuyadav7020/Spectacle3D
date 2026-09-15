@@ -30,3 +30,10 @@ body {
   color: var(--color-text-primary);
   font-family: var(--font-body);
 }
+
+/* Native checkboxes/radios (filters, checkout shipping method) otherwise
+   render with the browser's default blue instead of the brand teal. */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--color-accent-primary);
+}
