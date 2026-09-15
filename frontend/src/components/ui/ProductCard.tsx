@@ -33,15 +33,14 @@ export function ProductCard({ product }: ProductCardProps) {
 
   function handleAddToCart(e: React.MouseEvent) {
     e.preventDefault();
-    addItem({
-      productId: product.id,
-      name: product.name,
-      imageUrl,
-      material: product.material ?? product.print_technology,
-      price,
+    if (!isAuthenticated) {
+      navigate("/signin");
+      return;
+    }
+    addItem({ productId: product.id, quantity: 1 }).then(() => {
+      setAdded(true);
+      setTimeout(() => setAdded(false), 1500);
     });
-    setAdded(true);
-    setTimeout(() => setAdded(false), 1500);
   }
 
   return (

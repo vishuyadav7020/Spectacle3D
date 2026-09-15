@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, LogOut, Package, Receipt, Users } from "lucide-react";
+import { LayoutDashboard, LogOut, Package, Receipt, Tag, Users } from "lucide-react";
 import clsx from "clsx";
 import { useAuth } from "../../context/AuthContext";
 
@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/admin/products", label: "Products", icon: Package },
   { to: "/admin/orders", label: "Orders", icon: Receipt },
+  { to: "/admin/coupons", label: "Coupons", icon: Tag },
   { to: "/admin/users", label: "Users", icon: Users },
 ];
 

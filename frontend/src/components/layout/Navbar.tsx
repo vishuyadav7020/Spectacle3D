@@ -15,7 +15,7 @@ const NAV_LINKS = [
 
 export function Navbar() {
   const { isAuthenticated } = useAuth();
-  const { totalCount } = useCart();
+  const { itemCount } = useCart();
   const { items: wishlistItems } = useWishlist();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -77,9 +77,9 @@ export function Navbar() {
 
           <Link to="/cart" aria-label="Cart" className="relative flex items-center text-text-primary">
             <ShoppingCart size={20} />
-            {totalCount > 0 && (
+            {itemCount > 0 && (
               <span className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-accent-warm text-[10px] font-semibold text-bg">
-                {totalCount}
+                {itemCount}
               </span>
             )}
           </Link>
