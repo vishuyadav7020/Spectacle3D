@@ -37,7 +37,10 @@ export function Testimonials() {
 
       <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-3">
         {TESTIMONIALS.map(({ quote, name, rating }) => (
-          <div key={name} className="rounded-lg border border-border bg-surface p-6">
+          <div
+            key={name}
+            className="rounded-lg border border-border bg-surface p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/5"
+          >
             <div className="flex gap-0.5">
               {Array.from({ length: 5 }).map((_, i) => (
                 <Star

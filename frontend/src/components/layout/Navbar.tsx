@@ -27,7 +27,7 @@ export function Navbar() {
   }
 
   return (
-    <header className="border-b border-border">
+    <header className="sticky top-0 z-40 border-b border-border bg-bg/85 backdrop-blur-md">
       <nav className="flex items-center gap-6 px-6 py-4 md:px-16">
         <Link
           to="/"
