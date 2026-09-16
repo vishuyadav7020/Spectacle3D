@@ -79,6 +79,9 @@ class OrderSchema(BaseSchema):
         tax: float,
         total: float,
         card_last4: str = "0000",
+        coupon_id: Optional[ObjectId] = None,
+        coupon_code: Optional[str] = None,
+        discount_amount: float = 0.0,
     ) -> Dict:
         return {
             "order_number": None,  # Set after insert, from the generated _id — see utils.set_order_number
@@ -89,6 +92,9 @@ class OrderSchema(BaseSchema):
             "shipping_method": shipping_method,  # standard, express
 
             "subtotal": subtotal,
+            "coupon_id": coupon_id,
+            "coupon_code": coupon_code,
+            "discount_amount": discount_amount,
             "shipping_cost": shipping_cost,
             "tax": tax,
             "total": total,
