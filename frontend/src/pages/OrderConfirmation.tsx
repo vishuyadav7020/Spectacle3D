@@ -1,6 +1,5 @@
 import { Link, useLocation, Navigate } from "react-router-dom";
 import { Check, MapPin, Printer } from "lucide-react";
-import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
 import { Button } from "../components/ui/Button";
 import { CheckoutSteps } from "../components/ui/CheckoutSteps";
