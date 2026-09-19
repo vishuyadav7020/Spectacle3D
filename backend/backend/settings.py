@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import dj_database_url
 from pathlib import Path
 from dotenv import load_dotenv # type: ignore
 from datetime import timedelta
@@ -29,9 +30,29 @@ load_dotenv(BASE_DIR / ".env")
 SECRET_KEY = os.getenv("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Defaults to off — set DEBUG=True in backend/.env for local development.
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",") if h.strip()]
+
+# Render sets this automatically for every web service — trust it without
+# requiring it to also be listed in DJANGO_ALLOWED_HOSTS by hand.
+RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+if DEBUG:
+    ALLOWED_HOSTS += ["localhost", "127.0.0.1"]
+
+# Render (and most PaaS hosts) terminate TLS at a proxy in front of the app —
+# without this, Django thinks every request is plain HTTP.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+CSRF_TRUSTED_ORIGINS = [
+    o.strip() for o in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()
+]
+if RENDER_EXTERNAL_HOSTNAME:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{RENDER_EXTERNAL_HOSTNAME}")
 
 
 # Application definition
@@ -66,6 +87,7 @@ INSTALLED_APPS = INTERNAL_APPS + EXTERNAL_APPS
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -96,14 +118,19 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-# NOTE: this SQLite DB is only used for Django's own admin/auth tables.
-# All storefront data (users, products, orders, ...) lives in MongoDB Atlas below.
+# NOTE: this DB is only used for Django's own admin/auth + JWT token-blacklist
+# tables. All storefront data (users, products, orders, ...) lives in MongoDB
+# Atlas below. Defaults to local SQLite for dev; set DATABASE_URL (Render
+# provisions this automatically for an attached Postgres instance) in
+# production — SQLite lives on the app's local disk, which most PaaS hosts
+# (Render included, without a paid persistent disk) wipe on every deploy,
+# silently losing the token blacklist and admin accounts.
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,
+    )
 }
 
 
@@ -119,11 +146,12 @@ MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "spectacle3d")
 
 # --- CORS ---
 # corsheaders is installed but blocks everything until origins are allowed.
-# Add your deployed frontend's origin here when you go to production.
+# Set CORS_ALLOWED_ORIGINS in the environment (comma-separated) to your
+# deployed frontend's origin(s), e.g. https://spectacle3d.vercel.app
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-]
+] + [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
 
 
 # --- Email (used for password reset OTPs) ---
@@ -179,6 +207,19 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
+# NOTE: product images upload to local disk here, which — like the SQLite
+# fallback above — most PaaS hosts wipe on every deploy. Fine for local dev;
+# swap MEDIA storage for S3/Cloudinary/etc. before relying on uploads in
+# production.
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 

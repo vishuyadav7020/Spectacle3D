@@ -1,0 +1,48 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# In the Render dashboard: New -> Blueprint -> select this repo/branch.
+# Render reads this file and provisions the web service + database together.
+#
+# Secrets marked `sync: false` are NOT stored in git — Render will prompt
+# for them once in the dashboard after the blueprint is created:
+#   MONGO_URI              mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?appName=Cluster0
+#   EMAIL_HOST_USER         Gmail address used to send OTP emails (optional)
+#   EMAIL_HOST_PASSWORD     Gmail app password (optional)
+#   CORS_ALLOWED_ORIGINS    the deployed frontend's origin, e.g. https://spectacle3d.vercel.app
+#   CSRF_TRUSTED_ORIGINS    same origin(s), needed for the Django admin login form
+
+services:
+  - type: web
+    name: spectacle3d-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput"
+    startCommand: "gunicorn backend.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: MONGO_DB_NAME
+        value: spectacle3d
+      - key: MONGO_URI
+        sync: false
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: spectacle3d-db
+          property: connectionString
+
+databases:
+  - name: spectacle3d-db
+    plan: free
