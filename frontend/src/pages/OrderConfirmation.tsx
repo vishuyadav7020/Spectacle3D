@@ -1,6 +1,5 @@
 import { Link, useLocation, Navigate } from "react-router-dom";
 import { Check, MapPin, Printer } from "lucide-react";
-import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
 import { Button } from "../components/ui/Button";
 import { CheckoutSteps } from "../components/ui/CheckoutSteps";
@@ -95,6 +94,12 @@ export function OrderConfirmation() {
               <span>Subtotal</span>
               <span>₹{order.subtotal.toLocaleString("en-IN")}</span>
             </div>
+            {order.discount_amount > 0 && (
+              <div className="flex justify-between text-accent-primary">
+                <span>Discount{order.coupon_code ? ` (${order.coupon_code})` : ""}</span>
+                <span>-₹{order.discount_amount.toLocaleString("en-IN")}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span>Shipping</span>
               <span>₹{order.shipping_cost.toLocaleString("en-IN")}</span>

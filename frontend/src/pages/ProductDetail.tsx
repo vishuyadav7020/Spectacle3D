@@ -16,12 +16,13 @@ import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
 import { Button } from "../components/ui/Button";
 import { ProductCard } from "../components/ui/ProductCard";
+import { ProductReviews } from "../components/product/ProductReviews";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { useWishlist } from "../context/WishlistContext";
 import { type Product, type Variant, getProduct, listProducts } from "../lib/products";
 
-const TABS = ["Description", "Shipping & Returns"] as const;
+const TABS = ["Description", "Reviews", "Shipping & Returns"] as const;
 
 export function ProductDetail() {
   const { id } = useParams<{ id: string }>();
@@ -105,18 +106,18 @@ export function ProductDetail() {
 
   function handleAddToCart() {
     if (!product) return;
+    if (!isAuthenticated) {
+      navigate("/signin");
+      return;
+    }
     addItem({
       productId: product.id,
       variantId: selectedVariant?.id ?? null,
-      name: product.name,
-      imageUrl: product.images[0],
-      material: selectedVariant?.material ?? product.material ?? product.print_technology,
-      color: selectedVariant?.color,
-      price,
       quantity,
+    }).then(() => {
+      setAdded(true);
+      setTimeout(() => setAdded(false), 1500);
     });
-    setAdded(true);
-    setTimeout(() => setAdded(false), 1500);
   }
 
   return (
@@ -199,9 +200,13 @@ export function ProductDetail() {
                     />
                   ))}
                 </div>
-                <span className="font-body text-sm text-text-secondary">
+                <button
+                  type="button"
+                  onClick={() => setTab("Reviews")}
+                  className="font-body text-sm text-text-secondary hover:text-accent-primary hover:underline"
+                >
                   {product.rating_avg.toFixed(1)} ({product.rating_count} reviews)
-                </span>
+                </button>
                 <span className="flex items-center gap-1 font-body text-sm text-success">
                   <CheckCircle2 size={14} /> In Stock
                 </span>
@@ -325,6 +330,14 @@ export function ProductDetail() {
                       />
                     </div>
                   </div>
+                )}
+                {tab === "Reviews" && (
+                  <ProductReviews
+                    productId={product.id}
+                    onReviewChange={() => {
+                      if (id) getProduct(id).then(setProduct);
+                    }}
+                  />
                 )}
                 {tab === "Shipping & Returns" && (
                   <p>

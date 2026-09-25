@@ -29,6 +29,7 @@ class OrderCreateSerializer(serializers.Serializer):
     # Only the last 4 digits are ever sent — never the full card number, since
     # there's no real payment gateway to justify collecting/transmitting it.
     card_last4 = serializers.CharField(max_length=4, min_length=1, required=False, default="0000")
+    coupon_code = serializers.CharField(max_length=30, required=False, allow_null=True, allow_blank=True)
 
 
 class OrderStatusUpdateSerializer(serializers.Serializer):

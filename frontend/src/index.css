@@ -1,18 +1,20 @@
 @import "tailwindcss";
 
 @theme {
-  /* Colors — navy/teal palette, matching the UX Pilot "Spectacle3D" designs */
-  --color-bg: #0b1120;
-  --color-surface: #131b2e;
-  --color-surface-2: #1c2740;
-  --color-border: #232c42;
-  --color-text-primary: #f1f5f9;
-  --color-text-secondary: #94a3b8;
-  --color-accent-primary: #2dd4bf;
-  --color-accent-secondary: #6366f1;
-  --color-accent-warm: #f59e0b;
-  --color-success: #22c55e;
-  --color-rating: #fbbf24;
+  /* Colors — navy/gold professional palette. Navy reads as the trustworthy,
+     premium brand color; the previous teal is kept as a secondary accent
+     rather than dropped, so status badges stay visually distinct from CTAs. */
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-2: #eef2f7;
+  --color-border: #e2e8f0;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-accent-primary: #1e3a8a;
+  --color-accent-secondary: #0f766e;
+  --color-accent-warm: #b45309;
+  --color-success: #15803d;
+  --color-rating: #ca8a04;
 
   /* Radius */
   --radius-sm: 8px;
@@ -21,7 +23,7 @@
   --radius-pill: 999px;
 
   /* Fonts */
-  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -29,4 +31,11 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text-primary);
   font-family: var(--font-body);
+}
+
+/* Native checkboxes/radios (filters, checkout shipping method) otherwise
+   render with the browser's default blue instead of the brand teal. */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--color-accent-primary);
 }

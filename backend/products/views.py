@@ -33,6 +33,16 @@ MAX_PAGE_SIZE = 100
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
 
+SORT_OPTIONS = {
+    "newest": [("created_at", -1)],
+    "oldest": [("created_at", 1)],
+    "price_asc": [("base_price", 1)],
+    "price_desc": [("base_price", -1)],
+    "rating": [("rating_avg", -1), ("rating_count", -1)],
+    "popular": [("total_sold", -1)],
+    "name_asc": [("name", 1)],
+}
+
 
 def _object_id(value):
     try:
@@ -81,7 +91,15 @@ class ProductListCreateView(APIView):
                 {"name": {"$regex": search, "$options": "i"}},
                 {"description": {"$regex": search, "$options": "i"}},
                 {"tags": {"$regex": search, "$options": "i"}},
+                {"category": {"$regex": search, "$options": "i"}},
             ]
+
+        min_rating = request.query_params.get("min_rating")
+        if min_rating is not None:
+            try:
+                query["rating_avg"] = {"$gte": float(min_rating)}
+            except ValueError:
+                return Response({"error": "min_rating must be a number."}, status=status.HTTP_400_BAD_REQUEST)
 
         price_filter = {}
         min_price = request.query_params.get("min_price")
@@ -108,10 +126,12 @@ class ProductListCreateView(APIView):
         except ValueError:
             return Response({"error": "page_size must be an integer."}, status=status.HTTP_400_BAD_REQUEST)
 
+        sort = SORT_OPTIONS.get(request.query_params.get("sort_by", "newest"), SORT_OPTIONS["newest"])
+
         total = products_collection.count_documents(query)
         cursor = (
             products_collection.find(query)
-            .sort("created_at", -1)
+            .sort(sort)
             .skip((page - 1) * page_size)
             .limit(page_size)
         )

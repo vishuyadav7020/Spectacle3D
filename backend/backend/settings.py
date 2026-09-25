@@ -33,6 +33,21 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+# --- Production-only security headers ---
+# Gated behind DEBUG so local dev (plain http://localhost, no HTTPS) isn't
+# broken by a forced HTTPS redirect or "secure" cookies that never get sent.
+if not DEBUG:
+    # Render/Kuberns/most PaaS hosts terminate TLS at a proxy in front of the
+    # app — without this, Django sees every request as plain HTTP and
+    # SECURE_SSL_REDIRECT below would redirect-loop forever.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
 
 # Application definition
 
@@ -185,7 +200,24 @@ MEDIA_ROOT = BASE_DIR / "media"
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'users.authentication.MongoJWTAuthentication',
-    )
+    ),
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.ScopedRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        # Baseline for every endpoint, keyed by IP (anon) or user id (auth).
+        'anon': '100/hour',
+        'user': '1000/hour',
+        # Tighter limits on specific auth-sensitive views (see their
+        # `throttle_scope` in users/views.py) — these are what actually stop
+        # password/OTP brute-forcing; the baseline above is too loose for it.
+        'signin': '5/min',
+        'signup': '10/hour',
+        'password_reset': '3/hour',
+        'otp_verify': '5/min',
+    },
 }
 
 SIMPLE_JWT = {

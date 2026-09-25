@@ -35,8 +35,8 @@ export function CategoryGrid({ categories }: CategoryGridProps) {
       </div>
 
       <div className="mt-8 grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-5">
-        {categories.map((category) => (
-          <CategoryTile key={category.id} category={category} count={counts[category.id]} />
+        {categories.map((category, index) => (
+          <CategoryTile key={category.id} category={category} count={counts[category.id]} index={index} />
         ))}
       </div>
     </section>
