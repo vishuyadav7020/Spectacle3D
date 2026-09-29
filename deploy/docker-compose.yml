@@ -1,0 +1,51 @@
+# Pull-based variant of the root docker-compose.yml, for the EC2 instance.
+# Unlike the root file, this does NOT build images on the server — it pulls
+# pre-built images pushed to Docker Hub from your local machine (or CI).
+# Only this file + a sibling .env need to exist on the server; the repo
+# itself doesn't need to be cloned there.
+#
+# Build & push from your local machine (where the full repo is checked out):
+#   docker login
+#   docker build -t <dockerhub-username>/spectacle3d-backend:latest -f Dockerfile .
+#   docker build -t <dockerhub-username>/spectacle3d-frontend:latest ./frontend
+#   docker push <dockerhub-username>/spectacle3d-backend:latest
+#   docker push <dockerhub-username>/spectacle3d-frontend:latest
+#
+# On the server:
+#   mkdir -p ~/spectacle3d-deploy && cd ~/spectacle3d-deploy
+#   # copy this file to docker-compose.yml, fill in <dockerhub-username>
+#   # copy backend/.env.example to .env, fill in real values
+#   docker compose pull
+#   docker compose up -d
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: spectacle3d-mongo
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    image: <dockerhub-username>/spectacle3d-backend:latest
+    container_name: spectacle3d-backend
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    env_file:
+      - ./.env
+    command: sh -c "python manage.py migrate && gunicorn backend.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+    expose:
+      - "8000"
+
+  frontend:
+    image: <dockerhub-username>/spectacle3d-frontend:latest
+    container_name: spectacle3d-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  mongo_data:
