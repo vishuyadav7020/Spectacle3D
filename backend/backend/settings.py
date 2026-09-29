@@ -29,16 +29,25 @@ load_dotenv(BASE_DIR / ".env")
 SECRET_KEY = os.getenv("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Defaults to off. Set DEBUG=True in backend/.env for local dev and for
+# local Docker Compose testing (Nginx there has no TLS in front of it, so
+# the HTTPS-only block below would otherwise redirect-loop forever).
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",") if h.strip()]
+if DEBUG:
+    ALLOWED_HOSTS += ["localhost", "127.0.0.1"]
+
+CSRF_TRUSTED_ORIGINS = [
+    o.strip() for o in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()
+]
 
 # --- Production-only security headers ---
 # Gated behind DEBUG so local dev (plain http://localhost, no HTTPS) isn't
 # broken by a forced HTTPS redirect or "secure" cookies that never get sent.
 if not DEBUG:
-    # Render/Kuberns/most PaaS hosts terminate TLS at a proxy in front of the
-    # app — without this, Django sees every request as plain HTTP and
+    # The EC2 Nginx (or any reverse proxy in front of gunicorn) terminates
+    # TLS — without this, Django sees every request as plain HTTP and
     # SECURE_SSL_REDIRECT below would redirect-loop forever.
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_SSL_REDIRECT = True
@@ -81,6 +90,7 @@ INSTALLED_APPS = INTERNAL_APPS + EXTERNAL_APPS
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -122,10 +132,12 @@ DATABASES = {
 }
 
 
-# --- MongoDB Atlas ---
+# --- MongoDB ---
 # Read from backend/.env — never hardcode the URI here.
-# .env should contain:
-#   MONGO_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?appName=Cluster0
+# Atlas (cloud):    MONGO_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?appName=Cluster0
+# Local/self-hosted (Docker Compose "mongo" service, or an EC2-local mongod):
+#                    MONGO_URI=mongodb://mongo:27017/
+# .env should also contain:
 #   MONGO_DB_NAME=spectacle3d
 
 MONGO_URI = os.environ.get("MONGO_URI")
@@ -134,11 +146,12 @@ MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "spectacle3d")
 
 # --- CORS ---
 # corsheaders is installed but blocks everything until origins are allowed.
-# Add your deployed frontend's origin here when you go to production.
+# Set CORS_ALLOWED_ORIGINS in the environment (comma-separated) to your
+# deployed frontend's origin(s), e.g. https://yourdomain.com
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-]
+] + [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
 
 
 # --- Email (used for password reset OTPs) ---
@@ -194,6 +207,19 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
+# NOTE: product images upload to local disk here. On EC2 this persists on
+# the instance's own EBS volume (unlike Render's free tier), but still
+# won't survive if you ever replace the instance — swap for S3/etc. later
+# if that matters to you.
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 

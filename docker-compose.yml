@@ -1,0 +1,48 @@
+# Local test stack for the development-aws branch: self-hosted MongoDB +
+# Django/Gunicorn backend + Nginx-served React frontend, wired together the
+# same way they will be on the EC2 instance (Nginx as the single public
+# entry point, proxying /api and /admin to the backend).
+#
+# Usage:
+#   cp backend/.env.example backend/.env   # then fill in SECRET_KEY etc.
+#   docker compose up --build
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: spectacle3d-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spectacle3d-backend
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    env_file:
+      - backend/.env
+    command: sh -c "python manage.py migrate && gunicorn backend.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+    expose:
+      - "8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+    container_name: spectacle3d-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  mongo_data:
