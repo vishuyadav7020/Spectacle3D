@@ -23,6 +23,12 @@ services:
     image: mongo:7
     container_name: spectacle3d-mongo
     restart: unless-stopped
+    # Bound to the server's own loopback only — never reachable from the
+    # public internet. Access it from your PC's MongoDB Compass via an SSH
+    # tunnel (see the .env.example / deploy notes), not by opening 27017 in
+    # the EC2 security group.
+    ports:
+      - "127.0.0.1:27017:27017"
     volumes:
       - mongo_data:/data/db
 
