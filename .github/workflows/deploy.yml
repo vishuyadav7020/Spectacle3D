@@ -1,8 +1,14 @@
 name: Build, push and deploy to EC2
 
-# Push to development-aws -> build both images, push to Docker Hub (tagged
-# :latest and :<commit sha>), then SSH into the EC2 instance and pull +
-# restart. The server itself never needs the repo cloned or touched by hand.
+# Push to development-aws -> build both images on a GitHub-hosted runner,
+# push to Docker Hub (tagged :latest and :<commit sha>), then pull + restart
+# on the EC2 instance itself via a self-hosted runner registered there.
+#
+# The deploy job intentionally does NOT ssh in from GitHub's infrastructure
+# — the EC2 security group only allows SSH from a single trusted IP, and
+# GitHub-hosted runners don't have a fixed IP to allow. Running the deploy
+# job as a self-hosted runner on the instance means it reaches out to
+# GitHub over outbound HTTPS instead, so no inbound port needs opening.
 on:
   push:
     branches:
@@ -52,16 +58,11 @@ jobs:
 
   deploy:
     needs: build-and-push
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
-      - name: SSH into EC2 and redeploy
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd ~/spectacle3d-deploy
-            docker compose pull
-            docker compose up -d
-            docker image prune -f
+      - name: Pull and restart containers
+        run: |
+          cd ~/spectacle3d-deploy
+          docker compose pull
+          docker compose up -d
+          docker image prune -f
