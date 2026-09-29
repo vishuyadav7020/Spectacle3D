@@ -3,100 +3,110 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { type CartItem, loadCart, saveCart } from "../lib/cart";
+import { useAuth } from "./AuthContext";
+import {
+  type CartItem,
+  addCartItem,
+  clearCartRequest,
+  getCart,
+  removeCartItem,
+  updateCartItem,
+} from "../lib/cart";
 
 interface AddToCartInput {
   productId: string;
   variantId?: string | null;
-  name: string;
-  imageUrl?: string;
-  material: string;
-  color?: string;
-  price: number;
   quantity?: number;
 }
 
 interface CartContextValue {
   items: CartItem[];
-  totalCount: number;
-  totalPrice: number;
-  addItem: (input: AddToCartInput) => void;
-  updateQuantity: (key: string, quantity: number) => void;
-  removeItem: (key: string) => void;
-  clearCart: () => void;
+  itemCount: number;
+  subtotal: number;
+  loading: boolean;
+  addItem: (input: AddToCartInput) => Promise<void>;
+  updateQuantity: (itemId: string, quantity: number) => Promise<void>;
+  removeItem: (itemId: string) => Promise<void>;
+  clearCart: () => Promise<void>;
+  refresh: () => Promise<void>;
 }
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
 
-function makeKey(productId: string, variantId?: string | null): string {
-  return variantId ? `${productId}:${variantId}` : productId;
-}
+const EMPTY: { items: CartItem[]; item_count: number; subtotal: number } = {
+  items: [],
+  item_count: 0,
+  subtotal: 0,
+};
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>(() => loadCart());
+  const { isAuthenticated } = useAuth();
+  const [items, setItems] = useState<CartItem[]>(EMPTY.items);
+  const [itemCount, setItemCount] = useState(EMPTY.item_count);
+  const [subtotal, setSubtotal] = useState(EMPTY.subtotal);
+  const [loading, setLoading] = useState(false);
+
+  function applyCart(cart: { items: CartItem[]; item_count: number; subtotal: number }) {
+    setItems(cart.items);
+    setItemCount(cart.item_count);
+    setSubtotal(cart.subtotal);
+  }
+
+  const refresh = useCallback(async () => {
+    if (!isAuthenticated) {
+      applyCart(EMPTY);
+      return;
+    }
+    setLoading(true);
+    try {
+      const cart = await getCart();
+      applyCart(cart);
+    } catch {
+      applyCart(EMPTY);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    saveCart(items);
-  }, [items]);
+    refresh();
+  }, [refresh]);
 
-  const addItem = useCallback((input: AddToCartInput) => {
-    const key = makeKey(input.productId, input.variantId);
-    const quantity = input.quantity ?? 1;
-
-    setItems((prev) => {
-      const existing = prev.find((i) => i.key === key);
-      if (existing) {
-        return prev.map((i) =>
-          i.key === key ? { ...i, quantity: i.quantity + quantity } : i,
-        );
-      }
-      return [
-        ...prev,
-        {
-          key,
-          productId: input.productId,
-          variantId: input.variantId ?? null,
-          name: input.name,
-          imageUrl: input.imageUrl,
-          material: input.material,
-          color: input.color,
-          price: input.price,
-          quantity,
-        },
-      ];
-    });
-  }, []);
-
-  const updateQuantity = useCallback((key: string, quantity: number) => {
-    setItems((prev) =>
-      quantity <= 0
-        ? prev.filter((i) => i.key !== key)
-        : prev.map((i) => (i.key === key ? { ...i, quantity } : i)),
-    );
-  }, []);
-
-  const removeItem = useCallback((key: string) => {
-    setItems((prev) => prev.filter((i) => i.key !== key));
-  }, []);
-
-  const clearCart = useCallback(() => setItems([]), []);
-
-  const totalCount = useMemo(
-    () => items.reduce((sum, i) => sum + i.quantity, 0),
-    [items],
+  const addItem = useCallback(
+    async ({ productId, variantId, quantity = 1 }: AddToCartInput) => {
+      if (!isAuthenticated) return;
+      const cart = await addCartItem({
+        product_id: productId,
+        variant_id: variantId ?? null,
+        quantity,
+      });
+      applyCart(cart);
+    },
+    [isAuthenticated],
   );
-  const totalPrice = useMemo(
-    () => items.reduce((sum, i) => sum + i.price * i.quantity, 0),
-    [items],
-  );
+
+  const updateQuantity = useCallback(async (itemId: string, quantity: number) => {
+    const cart =
+      quantity <= 0 ? await removeCartItem(itemId) : await updateCartItem(itemId, quantity);
+    applyCart(cart);
+  }, []);
+
+  const removeItem = useCallback(async (itemId: string) => {
+    const cart = await removeCartItem(itemId);
+    applyCart(cart);
+  }, []);
+
+  const clearCart = useCallback(async () => {
+    await clearCartRequest();
+    applyCart(EMPTY);
+  }, []);
 
   return (
     <CartContext.Provider
-      value={{ items, totalCount, totalPrice, addItem, updateQuantity, removeItem, clearCart }}
+      value={{ items, itemCount, subtotal, loading, addItem, updateQuantity, removeItem, clearCart, refresh }}
     >
       {children}
     </CartContext.Provider>

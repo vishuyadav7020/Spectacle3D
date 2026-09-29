@@ -23,7 +23,10 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/users/', include('users.urls')),  # Include the users app URLs
     path('api/products/', include('products.urls')),  # Include the products app URLs
+    path('api/products/', include('reviews.urls')),  # api/products/<id>/reviews/... — see reviews/urls.py
     path('api/orders/', include('orders.urls')),  # Include the orders app URLs
+    path('api/cart/', include('cart.urls')),  # Include the cart app URLs
+    path('api/coupons/', include('coupons.urls')),  # Include the coupons app URLs
 ]
 
 if settings.DEBUG:

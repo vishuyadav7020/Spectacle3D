@@ -22,6 +22,7 @@ import { ProductListPage } from "./pages/admin/ProductList";
 import { ProductFormPage } from "./pages/admin/ProductForm";
 import { AdminOrders } from "./pages/admin/Orders";
 import { AdminUsers } from "./pages/admin/Users";
+import { AdminCoupons } from "./pages/admin/Coupons";
 
 function App() {
   return (
@@ -33,14 +34,14 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/shop" element={<Shop />} />
               <Route path="/products/:id" element={<ProductDetail />} />
-              <Route path="/cart" element={<Cart />} />
-              <Route path="/checkout" element={<Checkout />} />
               <Route path="/order-confirmation" element={<OrderConfirmation />} />
               <Route path="/signin" element={<SignIn />} />
               <Route path="/signup" element={<SignUp />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
 
               <Route element={<ProtectedRoute />}>
+                <Route path="/cart" element={<Cart />} />
+                <Route path="/checkout" element={<Checkout />} />
                 <Route path="/account" element={<Account />} />
                 <Route path="/orders" element={<Orders />} />
                 <Route path="/wishlist" element={<Wishlist />} />
@@ -53,6 +54,7 @@ function App() {
                   <Route path="/admin/products/new" element={<ProductFormPage />} />
                   <Route path="/admin/products/:id" element={<ProductFormPage />} />
                   <Route path="/admin/orders" element={<AdminOrders />} />
+                  <Route path="/admin/coupons" element={<AdminCoupons />} />
                   <Route path="/admin/users" element={<AdminUsers />} />
                 </Route>
               </Route>

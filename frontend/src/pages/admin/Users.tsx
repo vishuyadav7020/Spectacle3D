@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { listUsers, setUserActive } from "../../lib/adminUsers";
 import type { AuthUser } from "../../lib/auth";
+import { useAuth } from "../../context/AuthContext";
 
 const ROLE_OPTIONS = ["all", "customer", "admin"] as const;
 const STATUS_OPTIONS = ["all", "pending", "verified", "rejected"] as const;
 const PAGE_SIZE = 10;
 
 export function AdminUsers() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<AuthUser[] | null>(null);
   const [count, setCount] = useState(0);
   const [role, setRole] = useState<(typeof ROLE_OPTIONS)[number]>("all");
@@ -164,14 +166,18 @@ export function AdminUsers() {
                   {new Date(user.created_at).toLocaleDateString()}
                 </td>
                 <td className="px-4 py-3">
-                  <button
-                    onClick={() => handleToggleActive(user)}
-                    className={`font-body text-sm hover:underline ${
-                      user.is_active ? "text-accent-warm" : "text-accent-primary"
-                    }`}
-                  >
-                    {user.is_active ? "Deactivate" : "Activate"}
-                  </button>
+                  {user.id === currentUser?.id ? (
+                    <span className="font-body text-sm text-text-secondary">You</span>
+                  ) : (
+                    <button
+                      onClick={() => handleToggleActive(user)}
+                      className={`font-body text-sm hover:underline ${
+                        user.is_active ? "text-accent-warm" : "text-accent-primary"
+                      }`}
+                    >
+                      {user.is_active ? "Deactivate" : "Activate"}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

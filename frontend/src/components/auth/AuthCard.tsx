@@ -19,7 +19,10 @@ export function AuthCard({
   footerLinkTo,
 }: AuthCardProps) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-bg px-6 py-16">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-bg px-6 py-16">
+      <div className="pointer-events-none absolute -left-24 top-1/4 -z-10 h-72 w-72 rounded-full bg-accent-primary/15 blur-[100px]" />
+      <div className="pointer-events-none absolute -right-24 bottom-1/4 -z-10 h-72 w-72 rounded-full bg-accent-secondary/15 blur-[100px]" />
+
       <div className="w-full max-w-md">
         <Link
           to="/"
@@ -28,7 +31,7 @@ export function AuthCard({
           Spectacle3D
         </Link>
 
-        <div className="rounded-lg border border-border bg-surface p-8">
+        <div className="rounded-lg border border-border bg-surface p-8 shadow-xl shadow-black/5">
           <h1 className="font-display text-2xl font-bold text-text-primary">
             {title}
           </h1>

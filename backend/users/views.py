@@ -51,6 +51,7 @@ def _object_id(value):
 @method_decorator(csrf_exempt, name='dispatch')
 class UserSignUpView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = 'signup'
 
     def post(self, request):
         serializer = SignUpSerializer(data=request.data)
@@ -90,6 +91,7 @@ class UserSignUpView(APIView):
 @method_decorator(csrf_exempt, name='dispatch')
 class UserSignInView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = 'signin'
 
     def post(self, request):
         serializer = SignInSerializer(data=request.data)
@@ -258,6 +260,7 @@ class ForgotPasswordView(APIView):
     emails have accounts."""
 
     permission_classes = [AllowAny]
+    throttle_scope = 'password_reset'
 
     def post(self, request):
         serializer = ForgotPasswordSerializer(data=request.data)
@@ -290,6 +293,7 @@ class ResetPasswordView(APIView):
     """Verifies the OTP from ForgotPasswordView and sets a new password."""
 
     permission_classes = [AllowAny]
+    throttle_scope = 'otp_verify'
 
     def post(self, request):
         serializer = ResetPasswordSerializer(data=request.data)
@@ -595,6 +599,12 @@ class AdminUserDetailView(APIView):
             )
 
         is_active = bool(request.data["is_active"])
+
+        if not is_active and user_oid == ObjectId(request.user.id):
+            return Response(
+                {"error": "You cannot deactivate your own account."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         result = users_collection.update_one(
             {"_id": user_oid},

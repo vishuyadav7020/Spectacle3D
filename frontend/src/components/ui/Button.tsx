@@ -8,9 +8,10 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "bg-accent-primary text-bg hover:brightness-110",
+  primary:
+    "bg-accent-primary text-bg shadow-md shadow-accent-primary/25 hover:shadow-lg hover:shadow-accent-primary/35 hover:brightness-110 hover:-translate-y-0.5 active:translate-y-0 active:brightness-95",
   secondary:
-    "bg-surface-2 text-text-primary border border-border hover:border-accent-primary/60",
+    "bg-surface-2 text-text-primary border border-border hover:border-accent-primary/60 hover:-translate-y-0.5 active:translate-y-0",
 };
 
 export function Button({
@@ -22,7 +23,7 @@ export function Button({
   return (
     <button
       className={clsx(
-        "inline-flex items-center justify-center rounded-pill px-6 py-3.5 font-body text-[15px] font-semibold transition-colors",
+        "inline-flex items-center justify-center rounded-pill px-6 py-3.5 font-body text-[15px] font-semibold transition-all duration-200 disabled:pointer-events-none disabled:translate-y-0 disabled:shadow-none",
         variantClasses[variant],
         className,
       )}

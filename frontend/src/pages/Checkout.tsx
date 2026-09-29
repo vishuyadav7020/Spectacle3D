@@ -1,6 +1,6 @@
-import { type FormEvent, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Lock } from "lucide-react";
+import { type FormEvent, useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { AlertTriangle, ArrowLeft, Lock, Tag, X } from "lucide-react";
 import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
 import { Input } from "../components/ui/Input";
@@ -8,6 +8,7 @@ import { Button } from "../components/ui/Button";
 import { CheckoutSteps } from "../components/ui/CheckoutSteps";
 import { useCart } from "../context/CartContext";
 import { createOrder } from "../lib/orders";
+import { validateCoupon } from "../lib/coupons";
 
 const SHIPPING_OPTIONS = [
   { id: "standard", label: "Standard Shipping (5-7 days)", price: 5 },
@@ -17,8 +18,10 @@ const SHIPPING_OPTIONS = [
 const TAX_RATE = 0.08;
 
 export function Checkout() {
-  const { items, totalPrice, clearCart } = useCart();
+  const { items, subtotal, loading: cartLoading, clearCart } = useCart();
   const navigate = useNavigate();
+  const location = useLocation();
+  const initialCouponCode = (location.state as { couponCode?: string } | null)?.couponCode ?? "";
 
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -35,9 +38,64 @@ export function Checkout() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [couponInput, setCouponInput] = useState(initialCouponCode);
+  const [coupon, setCoupon] = useState<{ code: string; discountAmount: number } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
+
+  const hasUnavailableItems = items.some((item) => !item.available);
+
+  async function applyCoupon(code: string) {
+    if (!code.trim()) return;
+    setCouponError(null);
+    setApplyingCoupon(true);
+    try {
+      const result = await validateCoupon(code.trim(), subtotal);
+      setCoupon({ code: result.code, discountAmount: result.discount_amount });
+    } catch (err) {
+      const message =
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
+        "Could not apply this coupon.";
+      setCouponError(message);
+      setCoupon(null);
+    } finally {
+      setApplyingCoupon(false);
+    }
+  }
+
+  useEffect(() => {
+    if (initialCouponCode) applyCoupon(initialCouponCode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function handleCouponSubmit(e: FormEvent) {
+    e.preventDefault();
+    applyCoupon(couponInput);
+  }
+
+  function handleRemoveCoupon() {
+    setCoupon(null);
+    setCouponInput("");
+    setCouponError(null);
+  }
+
+  const discount = coupon?.discountAmount ?? 0;
   const shipping = SHIPPING_OPTIONS.find((s) => s.id === shippingMethod)!.price;
-  const tax = totalPrice * TAX_RATE;
-  const total = totalPrice + shipping + tax;
+  const taxableSubtotal = Math.max(subtotal - discount, 0);
+  const tax = taxableSubtotal * TAX_RATE;
+  const total = taxableSubtotal + shipping + tax;
+
+  if (cartLoading && items.length === 0) {
+    return (
+      <div className="min-h-screen bg-bg">
+        <Navbar />
+        <main className="px-6 py-24 text-center md:px-16">
+          <p className="font-body text-text-secondary">Loading your cart...</p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
@@ -64,8 +122,8 @@ export function Checkout() {
       // are sent, since there's no real payment gateway.
       const order = await createOrder({
         items: items.map((item) => ({
-          product_id: item.productId,
-          variant_id: item.variantId,
+          product_id: item.product_id,
+          variant_id: item.variant_id,
           quantity: item.quantity,
         })),
         shipping_address: {
@@ -80,9 +138,10 @@ export function Checkout() {
         },
         shipping_method: shippingMethod as "standard" | "express",
         card_last4: cardNumber.slice(-4) || "0000",
+        coupon_code: coupon?.code ?? undefined,
       });
 
-      clearCart();
+      await clearCart();
       navigate("/order-confirmation", { state: order });
     } catch (err) {
       const message =
@@ -214,31 +273,82 @@ export function Checkout() {
             </h2>
             <div className="mt-4 flex flex-col gap-3">
               {items.map((item) => (
-                <div key={item.key} className="flex items-center gap-3">
+                <div key={item.id} className="flex items-center gap-3">
                   <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-surface-2">
-                    {item.imageUrl && (
-                      <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
+                    {item.image_url && (
+                      <img src={item.image_url} alt={item.name ?? ""} className="h-full w-full object-cover" />
                     )}
                   </div>
                   <div className="flex-1">
-                    <p className="font-body text-sm text-text-primary">{item.name}</p>
+                    <p className="font-body text-sm text-text-primary">{item.name ?? "Unavailable item"}</p>
                     <p className="font-body text-xs text-text-secondary">
                       {item.material}
                       {item.quantity > 1 ? ` · Qty ${item.quantity}` : ""}
                     </p>
                   </div>
                   <p className="font-body text-sm font-medium text-text-primary">
-                    ₹{(item.price * item.quantity).toLocaleString("en-IN")}
+                    {item.subtotal != null ? `₹${item.subtotal.toLocaleString("en-IN")}` : "—"}
                   </p>
                 </div>
               ))}
             </div>
 
+            {hasUnavailableItems && (
+              <p className="mt-4 flex items-center gap-1.5 font-body text-xs text-accent-warm">
+                <AlertTriangle size={12} /> Remove unavailable items from your cart before checking out.
+              </p>
+            )}
+
+            <div className="mt-4 border-t border-border pt-4">
+              {coupon ? (
+                <div className="flex items-center justify-between rounded-md border border-accent-primary/40 bg-accent-primary/10 px-3 py-2">
+                  <span className="flex items-center gap-1.5 font-body text-sm text-accent-primary">
+                    <Tag size={14} /> {coupon.code} applied
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleRemoveCoupon}
+                    aria-label="Remove coupon"
+                    className="text-text-secondary hover:text-accent-warm"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value)}
+                    placeholder="Promo code"
+                    className="w-full rounded-md border border-border bg-bg px-3 py-2 font-body text-sm uppercase text-text-primary placeholder:normal-case placeholder:text-text-secondary/60 focus:border-accent-primary focus:outline-none"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleCouponSubmit}
+                    disabled={applyingCoupon}
+                    className="!px-4 !py-2 text-sm disabled:opacity-60"
+                  >
+                    {applyingCoupon ? "..." : "Apply"}
+                  </Button>
+                </div>
+              )}
+              {couponError && (
+                <p className="mt-2 font-body text-xs text-accent-warm">{couponError}</p>
+              )}
+            </div>
+
             <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4 font-body text-sm text-text-secondary">
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span>₹{totalPrice.toLocaleString("en-IN")}</span>
+                <span>₹{subtotal.toLocaleString("en-IN")}</span>
               </div>
+              {discount > 0 && (
+                <div className="flex justify-between text-accent-primary">
+                  <span>Discount</span>
+                  <span>-₹{discount.toLocaleString("en-IN")}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span>Shipping</span>
                 <span>₹{shipping.toLocaleString("en-IN")}</span>
@@ -263,7 +373,7 @@ export function Checkout() {
             <Button
               type="submit"
               variant="primary"
-              disabled={submitting}
+              disabled={submitting || hasUnavailableItems}
               className="mt-6 flex w-full items-center justify-center gap-2 disabled:opacity-60"
             >
               <Lock size={16} /> {submitting ? "Placing Order..." : "Place Order"}

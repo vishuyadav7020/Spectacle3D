@@ -13,8 +13,11 @@ export function Newsletter() {
 
   return (
     <section className="px-6 py-16 md:px-16">
-      <div className="relative overflow-hidden rounded-lg bg-gradient-to-br from-surface-2 to-accent-primary/10 px-6 py-14 text-center">
-        <span className="rounded-pill bg-accent-warm px-3 py-1 font-body text-xs font-semibold uppercase text-bg">
+      <div className="relative overflow-hidden rounded-lg border border-border bg-gradient-to-br from-surface-2 to-accent-primary/10 px-6 py-14 text-center shadow-xl shadow-black/5">
+        <div className="pointer-events-none absolute -right-20 -top-20 -z-10 h-64 w-64 rounded-full bg-accent-primary/20 blur-[90px]" />
+        <div className="pointer-events-none absolute -bottom-24 -left-20 -z-10 h-64 w-64 rounded-full bg-accent-secondary/15 blur-[90px]" />
+
+        <span className="relative rounded-pill bg-accent-warm px-3 py-1 font-body text-xs font-semibold uppercase text-bg shadow-sm">
           Limited Offer
         </span>
         <h2 className="mt-4 font-display text-3xl font-bold text-text-primary">

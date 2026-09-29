@@ -1,19 +1,27 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
 import { ProductCard } from "../components/ui/ProductCard";
-import { type Product, listProducts } from "../lib/products";
+import { type Product, type ProductSort, listProducts } from "../lib/products";
 import { CATEGORIES } from "../data/categories";
 
 const PAGE_SIZE = 12;
 const MATERIALS = ["PLA", "ABS", "PETG", "Resin", "Nylon", "TPU"];
-const SORT_OPTIONS = [
+const SORT_OPTIONS: { value: ProductSort; label: string }[] = [
   { value: "newest", label: "Newest" },
   { value: "price_asc", label: "Price: Low to High" },
   { value: "price_desc", label: "Price: High to Low" },
-  { value: "name", label: "Name: A-Z" },
+  { value: "rating", label: "Highest Rated" },
+  { value: "popular", label: "Best Selling" },
+  { value: "name_asc", label: "Name: A-Z" },
+];
+const RATING_OPTIONS = [
+  { value: "", label: "Any Rating" },
+  { value: "4", label: "4 Stars & Up" },
+  { value: "3", label: "3 Stars & Up" },
+  { value: "2", label: "2 Stars & Up" },
 ];
 
 export function Shop() {
@@ -23,7 +31,8 @@ export function Shop() {
   const search = searchParams.get("search") ?? "";
   const minPrice = searchParams.get("min_price") ?? "";
   const maxPrice = searchParams.get("max_price") ?? "";
-  const sort = searchParams.get("sort") ?? "newest";
+  const minRating = searchParams.get("min_rating") ?? "";
+  const sort = (searchParams.get("sort") ?? "newest") as ProductSort;
   const page = Number(searchParams.get("page") ?? "1");
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -40,6 +49,8 @@ export function Shop() {
       search: search || undefined,
       min_price: minPrice ? Number(minPrice) : undefined,
       max_price: maxPrice ? Number(maxPrice) : undefined,
+      min_rating: minRating ? Number(minRating) : undefined,
+      sort_by: sort,
       page,
       page_size: PAGE_SIZE,
     })
@@ -52,7 +63,7 @@ export function Shop() {
         setCount(0);
       })
       .finally(() => setLoading(false));
-  }, [category, material, search, minPrice, maxPrice, page]);
+  }, [category, material, search, minPrice, maxPrice, minRating, sort, page]);
 
   useEffect(() => {
     listProducts({ page_size: 1 }).then((data) =>
@@ -64,20 +75,6 @@ export function Shop() {
       );
     });
   }, []);
-
-  const sortedProducts = useMemo(() => {
-    const list = [...products];
-    switch (sort) {
-      case "price_asc":
-        return list.sort((a, b) => (a.discount_price ?? a.base_price) - (b.discount_price ?? b.base_price));
-      case "price_desc":
-        return list.sort((a, b) => (b.discount_price ?? b.base_price) - (a.discount_price ?? a.base_price));
-      case "name":
-        return list.sort((a, b) => a.name.localeCompare(b.name));
-      default:
-        return list;
-    }
-  }, [products, sort]);
 
   function updateParams(next: Record<string, string>) {
     const params = new URLSearchParams(searchParams);
@@ -209,6 +206,18 @@ export function Shop() {
                 </form>
 
                 <select
+                  value={minRating}
+                  onChange={(e) => updateParams({ min_rating: e.target.value })}
+                  className="rounded-md border border-border bg-surface px-3 py-2 font-body text-sm text-text-primary focus:border-accent-primary focus:outline-none"
+                >
+                  {RATING_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+
+                <select
                   value={sort}
                   onChange={(e) => updateParams({ sort: e.target.value })}
                   className="rounded-md border border-border bg-surface px-3 py-2 font-body text-sm text-text-primary focus:border-accent-primary focus:outline-none"
@@ -232,7 +241,7 @@ export function Shop() {
 
             {!loading && products.length > 0 && (
               <div className="mt-6 grid grid-cols-2 gap-6 md:grid-cols-3">
-                {sortedProducts.map((product) => (
+                {products.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
               </div>

@@ -43,6 +43,9 @@ export interface Order {
   shipping_address: ShippingAddress;
   shipping_method: "standard" | "express";
   subtotal: number;
+  coupon_id: string | null;
+  coupon_code: string | null;
+  discount_amount: number;
   shipping_cost: number;
   tax: number;
   total: number;
@@ -63,6 +66,7 @@ export interface CreateOrderPayload {
   shipping_address: ShippingAddress;
   shipping_method: "standard" | "express";
   card_last4?: string;
+  coupon_code?: string | null;
 }
 
 export async function createOrder(payload: CreateOrderPayload) {
