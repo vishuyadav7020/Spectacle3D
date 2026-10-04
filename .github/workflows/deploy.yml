@@ -1,18 +1,18 @@
-name: Build, push and deploy to EC2
+name: Build, push and deploy to prod server
 
-# Push to development-aws -> build both images on a GitHub-hosted runner,
+# Push to prod-server -> build both images on a GitHub-hosted runner,
 # push to Docker Hub (tagged :latest and :<commit sha>), then pull + restart
-# on the EC2 instance itself via a self-hosted runner registered there.
+# on the Ubuntu home server itself via a self-hosted runner registered there.
 #
 # The deploy job intentionally does NOT ssh in from GitHub's infrastructure
-# — the EC2 security group only allows SSH from a single trusted IP, and
-# GitHub-hosted runners don't have a fixed IP to allow. Running the deploy
-# job as a self-hosted runner on the instance means it reaches out to
-# GitHub over outbound HTTPS instead, so no inbound port needs opening.
+# — the server sits behind a home router, so SSH isn't exposed to the
+# internet. Running the deploy job as a self-hosted runner on the server
+# means it reaches out to GitHub over outbound HTTPS instead, so no inbound
+# port needs opening.
 on:
   push:
     branches:
-      - development-aws
+      - prod-server
 
 jobs:
   build-and-push:

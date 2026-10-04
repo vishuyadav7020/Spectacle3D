@@ -1,7 +1,8 @@
-# Local test stack for the development-aws branch: self-hosted MongoDB +
-# Django/Gunicorn backend + Nginx-served React frontend, wired together the
-# same way they will be on the EC2 instance (Nginx as the single public
-# entry point, proxying /api and /admin to the backend).
+# Build-from-source stack for the prod-server branch: self-hosted MongoDB +
+# Django/Gunicorn backend + Nginx-served React frontend (Nginx as the single
+# public entry point, proxying /api and /admin to the backend). Use it for
+# local testing or a manual build on the server; the CI-driven deploy uses
+# deploy/docker-compose.yml instead.
 #
 # Usage:
 #   cp backend/.env.example backend/.env   # then fill in SECRET_KEY etc.
@@ -12,8 +13,9 @@ services:
     image: mongo:7
     container_name: spectacle3d-mongo
     restart: unless-stopped
+    # Loopback only — the router NAT must never expose MongoDB.
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     volumes:
       - mongo_data:/data/db
 

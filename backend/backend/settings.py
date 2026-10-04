@@ -46,7 +46,7 @@ CSRF_TRUSTED_ORIGINS = [
 # Gated behind DEBUG so local dev (plain http://localhost, no HTTPS) isn't
 # broken by a forced HTTPS redirect or "secure" cookies that never get sent.
 if not DEBUG:
-    # The EC2 Nginx (or any reverse proxy in front of gunicorn) terminates
+    # Cloudflare (via the Nginx container) terminates
     # TLS — without this, Django sees every request as plain HTTP and
     # SECURE_SSL_REDIRECT below would redirect-loop forever.
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -135,7 +135,7 @@ DATABASES = {
 # --- MongoDB ---
 # Read from backend/.env — never hardcode the URI here.
 # Atlas (cloud):    MONGO_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?appName=Cluster0
-# Local/self-hosted (Docker Compose "mongo" service, or an EC2-local mongod):
+# Local/self-hosted (Docker Compose "mongo" service, or a host-local mongod):
 #                    MONGO_URI=mongodb://mongo:27017/
 # .env should also contain:
 #   MONGO_DB_NAME=spectacle3d
@@ -216,10 +216,9 @@ STORAGES = {
     },
 }
 
-# NOTE: product images upload to local disk here. On EC2 this persists on
-# the instance's own EBS volume (unlike Render's free tier), but still
-# won't survive if you ever replace the instance — swap for S3/etc. later
-# if that matters to you.
+# NOTE: product images upload to local disk here. On the home server this
+# persists on its own disk, but won't survive a disk failure or a rebuild of
+# the server — back it up, or swap for S3/etc. later if that matters to you.
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 

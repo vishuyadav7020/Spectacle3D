@@ -1,7 +1,7 @@
 # Builds the Django backend. Lives at the repo root (not backend/) so it
 # builds correctly on platforms without a "root directory" / monorepo
 # setting — it just COPYs the backend/ subdirectory itself. Used by both
-# local Docker Compose (development-aws) and Dockerfile-based PaaS hosts.
+# local Docker Compose (prod-server) and Dockerfile-based PaaS hosts.
 
 FROM python:3.11-slim
 

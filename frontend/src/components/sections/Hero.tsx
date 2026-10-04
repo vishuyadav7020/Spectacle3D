@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Box, Sparkles, Truck } from "lucide-react";
 import { Button } from "../ui/Button";
+import { InfillAnimation } from "./InfillAnimation";
 
 export function Hero() {
   return (
@@ -37,7 +38,7 @@ export function Hero() {
 
         <div className="relative">
           <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border border-border bg-gradient-to-br from-surface-2 via-surface-2 to-accent-primary/15 shadow-2xl shadow-accent-primary/10">
-            <Box size={120} strokeWidth={1} className="text-accent-primary/25" />
+            <InfillAnimation />
           </div>
 
           <div className="absolute left-3 top-3 flex items-center gap-2 rounded-md bg-bg/85 px-3 py-2 shadow-lg shadow-black/10 backdrop-blur-sm">
